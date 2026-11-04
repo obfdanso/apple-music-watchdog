@@ -1,5 +1,6 @@
 // Reads per-app audio levels and which output device an app is playing through,
-// using the Windows Core Audio API, and keeps the PC awake while music is playing. Compiled at runtime by AppleMusicWatchdog.ps1
+// and sets an app's volume, using the Windows Core Audio API. Also keeps the PC
+// awake while music is playing. Compiled at runtime by AppleMusicWatchdog.ps1
 // via Add-Type, so it must stay within C# 5 (what Windows PowerShell 5.1 ships).
 using System;
 using System.Collections.Generic;
@@ -89,6 +90,13 @@ public static class AppAudio {
         int GetPeakValue(out float peak);
     }
 
+    // An app's volume in the Windows volume mixer (separate from the app's own volume slider).
+    [ComImport, Guid("87CE5498-68D6-44E5-9215-6DA47EF883D8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface ISimpleAudioVolume {
+        int SetMasterVolume(float level, ref Guid context);
+        int GetMasterVolume(out float level);
+    }
+
     const int RenderFlow = 0;
     const int DeviceStateActive = 1;
     const int ClsCtxAll = 23;
@@ -106,6 +114,29 @@ public static class AppAudio {
             Release(session);
         }
         return best;
+    }
+
+    // The named processes' volume in the Windows volume mixer (0..1), or -1 if none
+    // of them has an audio session open.
+    public static float GetVolume(string[] processNames) {
+        float volume = -1f;
+        foreach (object session in FindSessions(processNames)) {
+            float level;
+            if (volume < 0 && ((ISimpleAudioVolume)session).GetMasterVolume(out level) == 0) volume = level;
+            Release(session);
+        }
+        return volume;
+    }
+
+    // Sets the named processes' volume in the Windows volume mixer (0..1). Used to
+    // fade the music out when the timer ends, and to put the volume back after.
+    public static void SetVolume(string[] processNames, float volume) {
+        Guid context = Guid.Empty;
+        volume = Math.Max(0f, Math.Min(1f, volume));
+        foreach (object session in FindSessions(processNames)) {
+            ((ISimpleAudioVolume)session).SetMasterVolume(volume, ref context);
+            Release(session);
+        }
     }
 
     // Reads the same level as GetPeak many times a second, cheaply: it holds on to
