@@ -733,7 +733,7 @@ $WindowXaml = @'
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
                   <TextBlock Style="{StaticResource RowTitle}" Text="Pause and play after"/>
-                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. Keep it longer than the gap between songs. If pausing and playing doesn't work twice in a row, it restarts the song, then skips to the next one."/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. Keep it longer than the gap between songs."/>
                 </StackPanel>
                 <Border Grid.Column="1" Style="{StaticResource Stepper}">
                   <StackPanel Orientation="Horizontal">
@@ -765,7 +765,7 @@ $WindowXaml = @'
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
                   <TextBlock Style="{StaticResource RowTitle}" Text="Restart Apple Music as a last resort"/>
-                  <TextBlock Style="{StaticResource RowHint}" Text="If nothing else brings the sound back, close Apple Music, open it again and press play. At most once every half hour."/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="If pausing and playing twice doesn't bring the sound back, the watchdog restarts the song, then skips to the next one. If that fails too, this closes Apple Music, opens it again and presses play, at most once every half hour."/>
                 </StackPanel>
                 <CheckBox x:Name="RestartAppleMusic" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
