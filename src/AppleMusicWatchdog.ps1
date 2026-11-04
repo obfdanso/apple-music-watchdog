@@ -214,6 +214,7 @@ $State = @{
     LastFixWorked = $false                 # whether sound came back after the last fix
     LastFixKind   = ''                     # what the last fix did (see $FixSteps)
     LastFixTitle  = ''                     # the song that went silent
+    LastFixCut    = $false                 # whether Apple Music was paused or stopped during the last fix
     FixKind       = ''                     # what the fix under way is doing
     FailedFixes   = 0                      # fixes in a row that didn't bring the sound back
     AppId         = ''                     # Apple Music's app ID, to open it again after a restart
@@ -341,6 +342,7 @@ function Complete-Fix([datetime]$Now, [bool]$Worked, [switch]$Abandoned) {
     if (-not $Abandoned) { Add-LogLine ('After resume: level={0:N4}' -f $State.Level) }
     $State.LastFixAt = $Now
     $State.LastFixWorked = $Worked
+    $State.LastFixCut = [bool]$Abandoned
     $State.LastFixKind = $State.FixKind
     if ($Worked) { $State.FailedFixes = 0 } elseif (-not $Abandoned) { $State.FailedFixes++ }
     $State.Phase = 'Watching'
