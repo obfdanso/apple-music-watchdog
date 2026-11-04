@@ -128,6 +128,10 @@ if (-not $createdNew) {
     return
 }
 
+# 'watchdog stop' sets this event so the loop can exit cleanly and log that it stopped.
+$stopEvent = New-Object System.Threading.EventWaitHandle($false, 'ManualReset', 'Local\AppleMusicWatchdogStop')
+[void]$stopEvent.Reset()
+
 Add-LogLine "Watchdog started (silence ${SilentSeconds}s, cooldown ${CooldownSeconds}s, threshold $Threshold)"
 $silentFor = 0
 $cooldownUntil = Get-Date
@@ -162,11 +166,12 @@ try {
             try { $mediaManager = Get-MediaManager } catch { Write-Verbose 'Could not refresh media manager.' }
             $silentFor = 0
         }
-        Start-Sleep -Seconds 1
+        if ($stopEvent.WaitOne(1000)) { break }
     }
 }
 finally {
     [AppAudio]::SetKeepAwake($false)
+    $stopEvent.Dispose()
     $mutex.ReleaseMutex()
     Add-LogLine 'Watchdog stopped'
 }

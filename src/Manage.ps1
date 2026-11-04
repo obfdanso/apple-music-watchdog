@@ -53,7 +53,19 @@ function Stop-Watchdog {
         Write-Output 'The watchdog is not running.'
         return
     }
-    $processes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+    # Ask it to stop so it can switch sleep back on and log that it stopped.
+    $stopEvent = $null
+    if ([System.Threading.EventWaitHandle]::TryOpenExisting('Local\AppleMusicWatchdogStop', [ref]$stopEvent)) {
+        [void]$stopEvent.Set()
+        $stopEvent.Dispose()
+        $processes | ForEach-Object { Wait-Process -Id $_.ProcessId -Timeout 10 -ErrorAction SilentlyContinue }
+    }
+    # Anything still running (it didn't answer, or is an older version) is ended the hard way.
+    $remaining = @(Get-WatchdogProcess)
+    if ($remaining) {
+        $remaining | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+        Add-Content -Path $LogPath -Value ('{0}  Watchdog stopped (forced)' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+    }
     Write-Output 'Watchdog stopped.'
 }
 
