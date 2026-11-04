@@ -688,6 +688,26 @@ $WindowXaml = @'
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Border Width="44" Height="44" CornerRadius="10" Background="{{Raised}}">
+                  <TextBlock Text="&#xE90F;" FontFamily="{StaticResource Icons}" FontSize="20"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
+                  <TextBlock x:Name="LastFixLabel" Text="Last fix" FontSize="13" Foreground="{{Secondary}}"/>
+                  <TextBlock x:Name="LastFixText" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="12" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
+                  <TextBlock x:Name="LastFixResult" FontSize="13"/>
+                </Border>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,10,0,0" Padding="20,14">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="44" Height="44" CornerRadius="10" Background="{{Raised}}">
                   <TextBlock x:Name="RouteIcon" Text="&#xE7F5;" FontFamily="{StaticResource Icons}" FontSize="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
@@ -890,8 +910,10 @@ function Show-WatchdogWindow {
     $xaml = $WindowXaml
     foreach ($key in $colors.Keys) { $xaml = $xaml.Replace("{{$key}}", $colors[$key]) }
     $window = [Windows.Markup.XamlReader]::Parse($xaml)
+    # Tall enough to show all of Now Playing, on screens that have the room.
+    $window.Height = [Math]::Max($window.MinHeight, [Math]::Min(820.0, [System.Windows.SystemParameters]::WorkArea.Height - 40))
 
-    $ui = @{ Deadline = $null; EndedAt = $null; ArtFor = $null; ActiveSince = Get-Date }
+    $ui = @{ Deadline = $null; EndedAt = $null; ArtFor = $null; ActiveSince = Get-Date; OpenedAt = Get-Date }
     foreach ($match in [regex]::Matches($xaml, 'x:Name="(\w+)"')) {
         $name = $match.Groups[1].Value
         $ui[$name] = $window.FindName($name)
@@ -1236,6 +1258,21 @@ function Show-WatchdogWindow {
         Start-Animation $ui.HeroBlur ([System.Windows.UIElement]::OpacityProperty) 0.75 700 0
     }
 
+    # What each kind of fix did, for the "Last fix" card.
+    $fixNames = @{
+        PausePlay   = 'Paused and played'
+        RestartSong = 'Restarted the song'
+        NextSong    = 'Skipped to the next song'
+        RestartApp  = 'Restarted Apple Music'
+        Play        = 'Pressed play'
+    }
+
+    # "just now", "5 min ago", "2 hr ago"
+    function Format-Ago([datetime]$Time) {
+        $minutes = [int][Math]::Floor(((Get-Date) - $Time).TotalMinutes)
+        if ($minutes -lt 1) { 'just now' } elseif ($minutes -lt 60) { "$minutes min ago" } else { '{0} hr ago' -f [int][Math]::Floor($minutes / 60) }
+    }
+
     function Update-Display {
         $now = Get-Date
         Update-Artwork
@@ -1330,10 +1367,27 @@ function Show-WatchdogWindow {
 
         # Stats
         Set-Text $ui.StatFixes $State.Fixes -Fade
-        $note = if (-not $State.LastFixAt) { 'None yet' }
-        elseif ($State.LastFixWorked) { 'Last at {0:HH:mm}, sound came back' -f $State.LastFixAt }
-        else { 'Last at {0:HH:mm}, still silent' -f $State.LastFixAt }
-        Set-Text $ui.StatFixesNote $note -Fade
+        Set-Text $ui.StatFixesNote $(if ($State.Fixes) { 'Since {0:HH:mm}' -f $ui.OpenedAt } else { 'None yet' })
+
+        # Last fix: what it did, to which song, and whether the sound came back.
+        if ($State.LastFixAt) {
+            Set-Text $ui.LastFixLabel ('Last fix, {0} at {1:HH:mm}' -f (Format-Ago $State.LastFixAt), $State.LastFixAt)
+            $what = $fixNames[$State.LastFixKind]
+            if (-not $what) { $what = 'Fixed' }
+            if ($State.LastFixTitle) { $what = '{0} during {1}{2}{3}' -f $what, [char]0x201C, $State.LastFixTitle, [char]0x201D }
+            Set-Text $ui.LastFixText $what -Fade
+            $result, $color = if ($State.LastFixWorked) { 'Sound came back', $colors.Green }
+            elseif ($State.LastFixCut) { 'Paused during the fix', $colors.Secondary }
+            else { 'Still silent', $colors.Amber }
+            Set-Text $ui.LastFixResult $result -Fade
+            Set-AnimatedBrush $ui.LastFixResult 'Foreground' $color
+            $ui.LastFixChip.Visibility = 'Visible'
+        }
+        else {
+            Set-Text $ui.LastFixLabel 'Last fix'
+            Set-Text $ui.LastFixText 'None yet. Fixes will show up here.'
+            $ui.LastFixChip.Visibility = 'Collapsed'
+        }
         Set-Text $ui.StatUptime $(if ($State.Active) { Format-Span ($now - $ui.ActiveSince) } else { 'Off' })
         Set-Text $ui.StatTimer $(if ($ui.Deadline) { Format-Span ($ui.Deadline - $now) } elseif ($ui.EndedAt) { 'Done' } else { 'Off' })
 
