@@ -1211,7 +1211,8 @@ function Show-WatchdogWindow {
         if ($State.Duration -gt 0) {
             $position = $State.Position
             if ($State.Status -eq 'Playing') { $position += ($now - $State.PositionAt).TotalSeconds }
-            $position = [Math]::Min($State.Duration, [Math]::Max(0, $position))
+            # 0.0, not 0: with a whole number, PowerShell picks the whole-number Max and rounds.
+            $position = [Math]::Min($State.Duration, [Math]::Max(0.0, $position))
             Set-Meter $ui.LcdProgress ($position / $State.Duration)
             Set-Text $ui.LcdElapsed (Format-SongTime $position)
             Set-Text $ui.LcdRemaining ('-' + (Format-SongTime ($State.Duration - $position)))
