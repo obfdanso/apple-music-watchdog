@@ -111,6 +111,7 @@ $Settings = @{
     FadeOut          = $true               # fade the music out over the timer's last 30 seconds
     CloseToTray      = $false
     RestartAppleMusic = $true              # as a last resort, when nothing else brings the sound back
+    RespectPause     = $false              # never press play on music that's paused
     Font             = 'Default'           # 'Default', 'System' (SystemFont below) or 'Anthropic'
     SystemFont       = ''
     RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
@@ -151,7 +152,7 @@ $Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 
 $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 $CooldownSeconds
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
-foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
+foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic', 'RespectPause') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
 if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
 $volume = 0.0
@@ -227,6 +228,8 @@ $State = @{
     OfflineSince  = $null
     StoppedAt     = $null                  # when Apple Music stopped playing while the internet was down
     FadeFrom      = -1.0                   # Apple Music's volume before the timer started fading it out
+    LastStatus    = ''                     # Apple Music's status at the previous check
+    PausedByYou   = $false                 # Apple Music was paused, and not by the watchdog
 }
 
 # The ways the watchdog tries to get the sound back, gentlest first. Each time one
@@ -360,6 +363,12 @@ function Invoke-WatchdogStep {
         $session = Get-AppleMusicSession $State.Manager
         $State.Status = if ($session) { [string]$session.GetPlaybackInfo().PlaybackStatus } else { 'Not running' }
         $playing = $State.Status -eq 'Playing'
+        # Paused (or stopped) since the last check, and not by the watchdog's own pause or restart?
+        if ($State.LastStatus -eq 'Playing' -and $session -and -not $playing -and $State.Phase -notin 'Paused', 'Restarting', 'Launching') {
+            $State.PausedByYou = $true
+        }
+        if ($playing) { $State.PausedByYou = $false }
+        $State.LastStatus = $State.Status
         $State.Level = [AppAudio]::GetPeak($AudioProcesses)
         if ($Settings.RestoreVolume -ge 0 -and $State.FadeFrom -lt 0 -and $State.Level -ge 0) {
             # A fade-out was cut short last time (the PC shut down, say): put the volume back.
@@ -454,7 +463,10 @@ function Invoke-WatchdogStep {
                         Start-Fix $session (Get-FixKind $session) $now 'Still silent after the connection came back'
                     }
                     elseif ($session -and $State.StoppedAt -and ($now - $State.StoppedAt).TotalMinutes -lt 10) {
-                        Start-Fix $session 'Play' $now 'Apple Music stopped while the connection was down'
+                        # It can't tell whether you paused it or Apple Music gave up, so with
+                        # "Stay paused when I pause" on, it leaves it paused.
+                        if ($Settings.RespectPause) { Add-LogLine 'Apple Music was paused while the connection was down. Leaving it paused.' }
+                        else { Start-Fix $session 'Play' $now 'Apple Music stopped while the connection was down' }
                     }
                 }
             }
