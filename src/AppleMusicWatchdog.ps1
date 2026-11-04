@@ -103,6 +103,7 @@ $Settings = @{
     StopAfterMinutes = 0
     PauseWhenDone    = $true
     CloseToTray      = $false
+    RestartAppleMusic = $true              # as a last resort, when nothing else brings the sound back
     Font             = 'Default'           # 'Default', 'System' (SystemFont below) or 'Anthropic'
     SystemFont       = ''
 }
@@ -142,7 +143,7 @@ $Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 
 $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 $CooldownSeconds
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
-foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'CloseToTray') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
+foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'CloseToTray', 'RestartAppleMusic') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
 if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
 
@@ -200,7 +201,20 @@ $State = @{
     LastError     = ''
     LastFixAt     = $null
     LastFixWorked = $false                 # whether sound came back after the last fix
+    LastFixKind   = ''                     # what the last fix did (see $FixSteps)
+    LastFixTitle  = ''                     # the song that went silent
+    FixKind       = ''                     # what the fix under way is doing
+    FailedFixes   = 0                      # fixes in a row that didn't bring the sound back
+    AppId         = ''                     # Apple Music's app ID, to open it again after a restart
+    RestartedAt   = [datetime]::MinValue   # when the watchdog last restarted Apple Music
+    BackAt        = $null                  # when Apple Music came back after a restart
 }
+
+# The ways the watchdog tries to get the sound back, gentlest first. Each time one
+# doesn't work, the next silence gets the next one; once the sound comes back, it
+# starts from the top again. After these, it restarts Apple Music (at most every
+# half hour, and only if that's switched on), then keeps to pausing and playing.
+$FixSteps = @('PausePlay', 'PausePlay', 'RestartSong', 'NextSong')
 
 function Add-LogLine([string]$Message) {
     $line = '{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
@@ -211,6 +225,75 @@ function Add-LogLine([string]$Message) {
     }
     Add-Content -Path $LogPath -Value $line
     Write-Verbose $line
+}
+
+# Which fix to try next, given how many in a row haven't worked.
+function Get-FixKind($Session) {
+    if ($State.FailedFixes -eq $FixSteps.Count -and $Settings.RestartAppleMusic -and ((Get-Date) - $State.RestartedAt).TotalMinutes -ge 30) {
+        return 'RestartApp'
+    }
+    $kind = if ($State.FailedFixes -lt $FixSteps.Count) { $FixSteps[$State.FailedFixes] } else { 'PausePlay' }
+    $controls = $Session.GetPlaybackInfo().Controls
+    # "Skip back" only restarts the song a few seconds in; earlier, it goes to the previous song.
+    if ($kind -eq 'RestartSong' -and (-not $controls.IsPreviousEnabled -or $State.Position -lt 5)) { $kind = 'NextSong' }
+    if ($kind -eq 'NextSong' -and -not $controls.IsNextEnabled) { $kind = 'PausePlay' }
+    $kind
+}
+
+# Starts a fix. The rest of it happens over the next few calls of Invoke-WatchdogStep.
+function Start-Fix($Session, [string]$Kind, [datetime]$Now, [double]$SilentFor) {
+    $State.Fixes++
+    $State.FixKind = $Kind
+    $State.FixSession = $Session
+    $State.LastFixTitle = $State.Title
+    $State.SilentSince = $null
+    $title = if ($State.Title) { $State.Title } else { '?' }
+    $doing = switch ($Kind) {
+        'PausePlay' { 'Pausing and resuming' }
+        'RestartSong' { 'Restarting the song' }
+        'NextSong' { 'Skipping to the next song' }
+        'RestartApp' { 'Restarting Apple Music' }
+    }
+    Add-LogLine ("Silent for {0:N0}s while 'Playing' ('{1}'). {2} (fix #{3})." -f $SilentFor, $title, $doing, $State.Fixes)
+    switch ($Kind) {
+        'PausePlay' {
+            [void](Wait-AsyncOperation ($Session.TryPauseAsync()) ([bool]))
+            $State.Phase = 'Paused'
+            $State.PhaseAt = $Now.AddSeconds(1.5)
+        }
+        'RestartSong' {
+            [void](Wait-AsyncOperation ($Session.TrySkipPreviousAsync()) ([bool]))
+            $State.Phase = 'Resumed'
+            $State.PhaseAt = $Now.AddSeconds(4)
+        }
+        'NextSong' {
+            [void](Wait-AsyncOperation ($Session.TrySkipNextAsync()) ([bool]))
+            $State.Phase = 'Resumed'
+            $State.PhaseAt = $Now.AddSeconds(4)
+        }
+        'RestartApp' {
+            # Close it (it may not respond), open it again 2s later, then press play.
+            $State.AppId = $Session.SourceAppUserModelId
+            $State.RestartedAt = $Now
+            Get-Process -Name $AudioProcesses -ErrorAction SilentlyContinue | Stop-Process -Force
+            $State.Phase = 'Restarting'
+            $State.PhaseAt = $Now.AddSeconds(2)
+        }
+    }
+}
+
+# Ends the fix under way: notes whether the sound came back, so the next one can
+# try something else if it didn't.
+function Complete-Fix([datetime]$Now, [bool]$Worked, [switch]$Abandoned) {
+    if (-not $Abandoned) { Add-LogLine ('After resume: level={0:N4}' -f $State.Level) }
+    $State.LastFixAt = $Now
+    $State.LastFixWorked = $Worked
+    $State.LastFixKind = $State.FixKind
+    if ($Worked) { $State.FailedFixes = 0 } elseif (-not $Abandoned) { $State.FailedFixes++ }
+    $State.Phase = 'Watching'
+    $State.FixKind = ''
+    $State.FixSession = $null
+    $State.CooldownUntil = $Now.AddSeconds($Settings.CooldownSeconds)
 }
 
 # One check of Apple Music. Called a few times a second; a fix is spread over
@@ -265,22 +348,53 @@ function Invoke-WatchdogStep {
         switch ($State.Phase) {
             'Paused' {
                 if ($now -ge $State.PhaseAt) {
-                    [void](Wait-AsyncOperation ($State.FixSession.TryPlayAsync()) ([bool]))
+                    # Already playing again if you pressed play yourself in the meantime.
+                    if ($State.Status -ne 'Playing') { [void](Wait-AsyncOperation ($State.FixSession.TryPlayAsync()) ([bool])) }
                     $State.Phase = 'Resumed'
                     $State.PhaseAt = $now.AddSeconds(3)
                 }
             }
+            'Restarting' {
+                if ($now -ge $State.PhaseAt) {
+                    Start-Process -FilePath 'explorer.exe' -ArgumentList "shell:AppsFolder\$($State.AppId)"
+                    $State.Phase = 'Launching'
+                    $State.PhaseAt = $now.AddSeconds(60)   # give up if it hasn't opened by then
+                    $State.BackAt = $null
+                }
+            }
+            'Launching' {
+                # Once it's back, give it a few seconds to load the song before pressing play.
+                if ($session -and -not $State.BackAt) { $State.BackAt = $now }
+                if ($session -and ($now - $State.BackAt).TotalSeconds -ge 5) {
+                    [void](Wait-AsyncOperation ($session.TryPlayAsync()) ([bool]))
+                    $State.FixSession = $session
+                    $State.Phase = 'Resumed'
+                    $State.PhaseAt = $now.AddSeconds(5)
+                }
+                elseif ($now -ge $State.PhaseAt) {
+                    Add-LogLine "Apple Music didn't open again"
+                    Complete-Fix $now $false
+                }
+            }
             'Resumed' {
                 if ($now -ge $State.PhaseAt) {
-                    Add-LogLine ('After resume: level={0:N4}' -f $State.Level)
-                    $State.LastFixAt = $now
-                    $State.LastFixWorked = $State.Level -ge $Threshold
-                    $State.Phase = 'Watching'
-                    $State.FixSession = $null
-                    $State.CooldownUntil = $now.AddSeconds($Settings.CooldownSeconds)
+                    if ($playing) { Complete-Fix $now ($State.Level -ge $Threshold) }
+                    else {
+                        # Paused or stopped in the meantime (by you, say), so there's nothing to judge.
+                        Add-LogLine 'Apple Music stopped playing during the fix'
+                        Complete-Fix $now $false -Abandoned
+                    }
                 }
             }
             default {
+                $audible = $playing -and $State.Level -ge $Threshold
+                if ($audible -and $State.LastFixAt -and -not $State.LastFixWorked -and ($now - $State.LastFixAt).TotalSeconds -lt 60) {
+                    # The sound came back a little after the last fix was checked.
+                    $State.LastFixWorked = $true
+                    Add-LogLine ('Sound came back {0:N0}s after the fix' -f ($now - $State.LastFixAt).TotalSeconds)
+                }
+                if ($audible) { $State.FailedFixes = 0 }
+
                 if ($State.Active -and $playing -and $State.Level -lt $Threshold) {
                     if (-not $State.SilentSince) { $State.SilentSince = $now }
                 }
@@ -290,14 +404,7 @@ function Invoke-WatchdogStep {
                 $silentFor = if ($State.SilentSince) { ($now - $State.SilentSince).TotalSeconds } else { 0 }
 
                 if ($silentFor -ge $Settings.SilentSeconds -and $now -ge $State.CooldownUntil) {
-                    $State.Fixes++
-                    $title = if ($State.Title) { $State.Title } else { '?' }
-                    Add-LogLine ("Silent for {0:N0}s while 'Playing' ('{1}'). Pausing and resuming (fix #{2})." -f $silentFor, $title, $State.Fixes)
-                    [void](Wait-AsyncOperation ($session.TryPauseAsync()) ([bool]))
-                    $State.FixSession = $session
-                    $State.Phase = 'Paused'
-                    $State.PhaseAt = $now.AddSeconds(1.5)
-                    $State.SilentSince = $null
+                    Start-Fix $session (Get-FixKind $session) $now $silentFor
                 }
             }
         }
@@ -312,6 +419,7 @@ function Invoke-WatchdogStep {
         try { $State.Manager = Get-MediaManager } catch { Write-Verbose 'Could not refresh media manager.' }
         $State.SilentSince = $null
         $State.Phase = 'Watching'
+        $State.FixKind = ''
         $State.FixSession = $null
     }
 }
