@@ -1092,6 +1092,7 @@ function Show-WatchdogWindow {
             $State.Phase = 'Watching'
             $State.FixKind = ''
             $State.FixSession = $null
+            Stop-ConnectionCheck
             $session = Get-AppleMusicSession $State.Manager
             if ($session -and $session.GetPlaybackInfo().PlaybackStatus -eq 'Playing') {
                 [void](Wait-AsyncOperation ($session.TryPauseAsync()) ([bool]))
@@ -1169,6 +1170,14 @@ function Show-WatchdogWindow {
             $dot = $colors.Grey
             if ($ui.EndedAt) { 'Not watching. The timer ran out.' } else { 'Not watching. Press Start Watching when you''re ready.' }
         }
+        elseif ($State.Phase -eq 'Offline') {
+            $dot = $colors.Amber
+            'No sound, and Apple Music can''t be reached. Waiting for the internet to come back, then the watchdog will fix it.'
+        }
+        elseif ($State.Phase -eq 'Checking') {
+            $dot = $colors.Amber
+            'No sound for {0} sec. Checking the internet connection...' -f [int]($now - $State.SilentSince).TotalSeconds
+        }
         elseif ($State.Phase -ne 'Watching') {
             $dot = $colors.Accent
             switch ($State.FixKind) {
@@ -1197,7 +1206,12 @@ function Show-WatchdogWindow {
         Set-Text $ui.HeroWatch $watch -Fade:($ui.HeroWatch.Text -notlike 'No sound for*' -or $watch -notlike 'No sound for*')
         Set-AnimatedBrush $ui.HeroDot 'Fill' $dot
         Set-AnimatedBrush $ui.PillDot 'Fill' $dot
-        Set-Text $ui.PillText -Fade $(if (-not $State.Active) { 'Not watching' } elseif ($State.Phase -ne 'Watching') { 'Fixing' } elseif ($State.SilentSince) { 'No sound' } else { 'Watching' })
+        $pill = if (-not $State.Active) { 'Not watching' }
+        elseif ($State.Phase -eq 'Offline') { 'Offline' }
+        elseif ($State.Phase -eq 'Checking' -or ($State.Phase -eq 'Watching' -and $State.SilentSince)) { 'No sound' }
+        elseif ($State.Phase -ne 'Watching') { 'Fixing' }
+        else { 'Watching' }
+        Set-Text $ui.PillText $pill -Fade
         $ui.ToggleWatch.Content = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' }
         Set-AnimatedBrush $ui.ToggleWatch 'Background' $(if ($State.Active) { $colors.Raised } else { $colors.Accent })
         Set-AnimatedBrush $ui.ToggleWatch 'Foreground' $(if ($State.Active) { $colors.Text } else { '#FFFFFF' })
