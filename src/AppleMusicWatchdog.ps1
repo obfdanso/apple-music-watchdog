@@ -124,12 +124,25 @@ if ($PSBoundParameters.ContainsKey('SilentSeconds')) { $Settings.SilentSeconds =
 if ($PSBoundParameters.ContainsKey('CooldownSeconds')) { $Settings.CooldownSeconds = $CooldownSeconds }
 if ($PSBoundParameters.ContainsKey('AllowSleep')) { $Settings.KeepAwake = -not $AllowSleep }
 
-# Keep hand-edited values in range.
-$Settings.SilentSeconds = [Math]::Min(600, [Math]::Max(3, [int]$Settings.SilentSeconds))
-$Settings.CooldownSeconds = [Math]::Min(3600, [Math]::Max(0, [int]$Settings.CooldownSeconds))
-$Settings.StopAfterHours = [Math]::Min(23, [Math]::Max(0, [int]$Settings.StopAfterHours))
-$Settings.StopAfterMinutes = [Math]::Min(59, [Math]::Max(0, [int]$Settings.StopAfterMinutes))
-foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'CloseToTray') { $Settings[$name] = [bool]$Settings[$name] }
+# Hand-edited values: a whole number in range, or the default if it isn't one.
+function ConvertTo-SettingNumber($Value, [int]$Minimum, [int]$Maximum, [int]$Default) {
+    $number = 0
+    $styles = [Globalization.NumberStyles]::Integer
+    if (-not [int]::TryParse([string]$Value, $styles, [Globalization.CultureInfo]::InvariantCulture, [ref]$number)) { $number = $Default }
+    [Math]::Min($Maximum, [Math]::Max($Minimum, $number))
+}
+
+# On or off. Text counts as on only if it says "true", so "false" stays off.
+function ConvertTo-SettingSwitch($Value) {
+    if ($Value -is [string]) { return $Value.Trim() -eq 'true' }
+    [bool]$Value
+}
+
+$Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 $SilentSeconds
+$Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 $CooldownSeconds
+$Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
+$Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
+foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'CloseToTray') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
 if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
 
