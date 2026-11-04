@@ -11,6 +11,11 @@
 - Works when started from PowerShell 7 by handing over to Windows PowerShell 5.1.
 - `watchdog stop` now lets the watchdog shut down cleanly and log that it stopped.
 - The audio check uses about a sixth of the CPU it did.
+- If the watchdog stops halfway through a fix, it presses play again instead of leaving the music paused.
+- A bad value in the settings file no longer stops the watchdog from starting.
+- An error in a window button or switch is logged instead of closing the watchdog.
+- `watchdog stop` and `watchdog status` no longer mistake other PowerShell commands for the watchdog.
+- The artwork shows up even when Apple Music sends it a moment after the song title.
 
 ## 0.1.0 - 2026-11-04
 
