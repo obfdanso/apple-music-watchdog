@@ -797,6 +797,16 @@ $WindowXaml = @'
                 <CheckBox x:Name="PauseWhenDone" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
             </Border>
+            <Border x:Name="FadeRow" Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Fade out first"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="Turns Apple Music down slowly over the last 30 seconds before pausing it, then puts the volume back."/>
+                </StackPanel>
+                <CheckBox x:Name="FadeOut" Grid.Column="1" Style="{StaticResource Switch}"/>
+              </Grid>
+            </Border>
             <Border Style="{StaticResource SettingCard}">
               <StackPanel VerticalAlignment="Center">
                 <TextBlock x:Name="TimerBig" FontFamily="{DynamicResource Display}" FontSize="26" FontWeight="SemiBold"/>
@@ -1055,6 +1065,7 @@ function Show-WatchdogWindow {
 
     # Starts the time limit from now, if one is set.
     function Reset-Deadline {
+        Stop-Fade
         $ui.EndedAt = $null
         $ui.Deadline = if ($State.Active -and $Settings.StopAfterEnabled) { (Get-Date).AddMinutes((Get-TimerLength)) } else { $null }
     }
@@ -1068,6 +1079,48 @@ function Show-WatchdogWindow {
         Update-Display
     }
 
+    # Fading out at the end of the timer: Apple Music's volume (in the Windows volume
+    # mixer) goes down over the last 30 seconds, and is put back after it's paused.
+    $FadeSeconds = 30
+    $fadeTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $fadeTimer.Interval = [TimeSpan]::FromMilliseconds(100)
+    $fadeTimer.Add_Tick({
+            try {
+                if (-not $ui.Deadline) { Stop-Fade; return }
+                $span = ($ui.Deadline - $ui.FadeStart).TotalSeconds
+                $done = if ($span -gt 0) { [Math]::Min(1.0, ((Get-Date) - $ui.FadeStart).TotalSeconds / $span) } else { 1.0 }
+                # Squared, so it sounds like an even fade rather than a sudden drop at the end.
+                [AppAudio]::SetVolume($AudioProcesses, [float]($State.FadeFrom * (1 - $done) * (1 - $done)))
+            }
+            catch {
+                Add-LogLine "Error while fading out: $($_.Exception.Message)"
+                Stop-Fade
+            }
+        })
+
+    function Start-Fade {
+        $volume = [AppAudio]::GetVolume($AudioProcesses)
+        if ($volume -le 0) { return }
+        $State.FadeFrom = $volume
+        $ui.FadeStart = Get-Date
+        # Saved, so the volume can still be put back if the PC shuts down mid-fade.
+        $Settings.RestoreVolume = $volume
+        Save-WatchdogSetting
+        $fadeTimer.Start()
+        Add-LogLine 'Fading out'
+    }
+
+    # Ends a fade and puts the volume back.
+    function Stop-Fade {
+        $fadeTimer.Stop()
+        $ui.RestoreAt = $null
+        if ($State.FadeFrom -lt 0) { return }
+        [AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom)
+        $State.FadeFrom = -1.0
+        $Settings.RestoreVolume = -1.0
+        Save-WatchdogSetting
+    }
+
     function Start-Watching {
         $State.Active = $true
         $ui.ActiveSince = Get-Date
@@ -1076,6 +1129,8 @@ function Show-WatchdogWindow {
     }
 
     function Stop-Watching([string]$Reason) {
+        # Puts the volume back straight away, unless the timer is about to (Stop-Session).
+        if (-not $ui.RestoreAt) { Stop-Fade }
         $State.Active = $false
         $State.SilentSince = $null
         $ui.Deadline = $null
@@ -1085,6 +1140,11 @@ function Show-WatchdogWindow {
 
     function Stop-Session {
         $fixed = switch ($State.Fixes) { 0 { 'no fixes needed' } 1 { 'fixed once' } default { "fixed $_ times" } }
+        if ($State.FadeFrom -ge 0) {
+            # Faded out: put the volume back a moment after pausing, once it's quiet.
+            $fadeTimer.Stop()
+            $ui.RestoreAt = (Get-Date).AddSeconds(1.5)
+        }
         Stop-Watching "Time is up. Stopped watching ($fixed)"
         $ui.EndedAt = Get-Date
         if ($Settings.PauseWhenDone) {
@@ -1170,6 +1230,9 @@ function Show-WatchdogWindow {
             $dot = $colors.Grey
             if ($ui.EndedAt) { 'Not watching. The timer ran out.' } else { 'Not watching. Press Start Watching when you''re ready.' }
         }
+        elseif ($State.FadeFrom -ge 0) {
+            'Time''s nearly up. Fading the music out...'
+        }
         elseif ($State.Phase -eq 'Offline') {
             $dot = $colors.Amber
             'No sound, and Apple Music can''t be reached. Waiting for the internet to come back, then the watchdog will fix it.'
@@ -1253,6 +1316,9 @@ function Show-WatchdogWindow {
         Set-AnimatedOpacity $ui.TimerOptions $(if ($on) { 1 } else { 0.5 })
         $ui.PauseRow.IsEnabled = $on
         Set-AnimatedOpacity $ui.PauseRow $(if ($on) { 1 } else { 0.5 })
+        $fadeOn = $on -and $Settings.PauseWhenDone
+        $ui.FadeRow.IsEnabled = $fadeOn
+        Set-AnimatedOpacity $ui.FadeRow $(if ($fadeOn) { 1 } else { 0.5 })
         foreach ($preset in 15, 30, 45, 60, 120, 240) {
             $chip = $ui["Preset$preset"]
             Set-AnimatedBrush $chip 'Background' $(if ($preset -eq $minutes) { $colors.Accent } else { $colors.Raised })
@@ -1260,7 +1326,8 @@ function Show-WatchdogWindow {
         }
         if ($ui.Deadline) {
             Set-Text $ui.TimerBig ('{0} left' -f (Format-Span ($ui.Deadline - $now)))
-            Set-Text $ui.TimerSmall ('Stops at {0:HH:mm}{1}.' -f $ui.Deadline, $(if ($Settings.PauseWhenDone) { ' and pauses Apple Music' } else { '' }))
+            $ending = if (-not $Settings.PauseWhenDone) { '' } elseif ($Settings.FadeOut) { ', fading Apple Music out and pausing it' } else { ' and pauses Apple Music' }
+            Set-Text $ui.TimerSmall ('Stops at {0:HH:mm}{1}.' -f $ui.Deadline, $ending)
         }
         elseif ($ui.EndedAt) {
             Set-Text $ui.TimerBig 'Time''s up'
@@ -1353,6 +1420,7 @@ function Show-WatchdogWindow {
     $ui.KeepAwake.IsChecked = $Settings.KeepAwake
     $ui.StopAfter.IsChecked = $Settings.StopAfterEnabled
     $ui.PauseWhenDone.IsChecked = $Settings.PauseWhenDone
+    $ui.FadeOut.IsChecked = $Settings.FadeOut
     $ui.CloseToTray.IsChecked = $Settings.CloseToTray
     $ui.RestartAppleMusic.IsChecked = $Settings.RestartAppleMusic
 
@@ -1363,10 +1431,12 @@ function Show-WatchdogWindow {
     # Switches react to being turned on or off, however that happens (mouse, keyboard or accessibility tools).
     $onKeepAwake = { $Settings.KeepAwake = [bool]$ui.KeepAwake.IsChecked; Save-WatchdogSetting }
     $onStopAfter = { $Settings.StopAfterEnabled = [bool]$ui.StopAfter.IsChecked; Save-WatchdogSetting; Reset-Deadline; Update-Display }
-    $onPauseWhenDone = { $Settings.PauseWhenDone = [bool]$ui.PauseWhenDone.IsChecked; Save-WatchdogSetting; Update-Display }
+    $onPauseWhenDone = { $Settings.PauseWhenDone = [bool]$ui.PauseWhenDone.IsChecked; Save-WatchdogSetting; if (-not $Settings.PauseWhenDone) { Stop-Fade }; Update-Display }
     $ui.KeepAwake.Add_Checked($onKeepAwake); $ui.KeepAwake.Add_Unchecked($onKeepAwake)
     $ui.StopAfter.Add_Checked($onStopAfter); $ui.StopAfter.Add_Unchecked($onStopAfter)
     $ui.PauseWhenDone.Add_Checked($onPauseWhenDone); $ui.PauseWhenDone.Add_Unchecked($onPauseWhenDone)
+    $onFadeOut = { $Settings.FadeOut = [bool]$ui.FadeOut.IsChecked; Save-WatchdogSetting; if (-not $Settings.FadeOut) { Stop-Fade }; Update-Display }
+    $ui.FadeOut.Add_Checked($onFadeOut); $ui.FadeOut.Add_Unchecked($onFadeOut)
     $onCloseToTray = { $Settings.CloseToTray = [bool]$ui.CloseToTray.IsChecked; Save-WatchdogSetting; Update-Tray; Update-Display }
     $ui.CloseToTray.Add_Checked($onCloseToTray); $ui.CloseToTray.Add_Unchecked($onCloseToTray)
     $onRestartAppleMusic = { $Settings.RestartAppleMusic = [bool]$ui.RestartAppleMusic.IsChecked; Save-WatchdogSetting }
@@ -1443,7 +1513,13 @@ function Show-WatchdogWindow {
                 if ($stopEvent.WaitOne(0)) { $ui.Quitting = $true; $window.Close(); return }
                 if ($showEvent.WaitOne(0)) { Show-FromTray }
                 Invoke-WatchdogStep
-                if ($ui.Deadline -and (Get-Date) -ge $ui.Deadline) { Stop-Session }
+                $now = Get-Date
+                if ($ui.Deadline -and $Settings.PauseWhenDone -and $Settings.FadeOut -and $State.FadeFrom -lt 0 -and
+                    $State.Status -eq 'Playing' -and $now -ge $ui.Deadline.AddSeconds(-$FadeSeconds) -and $now -lt $ui.Deadline) {
+                    Start-Fade
+                }
+                if ($ui.Deadline -and $now -ge $ui.Deadline) { Stop-Session }
+                if ($ui.RestoreAt -and $now -ge $ui.RestoreAt) { Stop-Fade }
                 # No need to redraw while the window is minimised or hidden in the tray.
                 if ($window.IsVisible -and $window.WindowState -ne 'Minimized') { Update-Display } else { Update-Tray }
             }
@@ -1459,6 +1535,7 @@ function Show-WatchdogWindow {
                 return
             }
             $ticker.Stop()
+            $fadeTimer.Stop()
             $wave.Stop()
         })
     $window.Add_ContentRendered({
