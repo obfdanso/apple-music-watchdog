@@ -67,11 +67,14 @@ public static class WindowsShell {
         public uint PropertyId;
     }
 
-    // Just enough of PROPVARIANT to pass a string (VT_LPWSTR).
+    // Just enough of PROPVARIANT to pass a string (VT_LPWSTR), at its full size
+    // (24 bytes on 64-bit Windows): Windows copies the whole thing, so a shorter
+    // one would have it read past the end.
     [StructLayout(LayoutKind.Explicit)]
     class PropVariant {
         [FieldOffset(0)] public ushort Type;
         [FieldOffset(8)] public IntPtr Pointer;
+        [FieldOffset(16)] public IntPtr Spare;
     }
 
     const ushort VtLpwstr = 31;
