@@ -770,6 +770,16 @@ $WindowXaml = @'
                 <CheckBox x:Name="RestartAppleMusic" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
             </Border>
+            <Border Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Stay paused when I pause"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="The watchdog never presses play on music that's paused. When this is off, music that stopped while the internet was down starts again once it's back, even if you paused it yourself."/>
+                </StackPanel>
+                <CheckBox x:Name="RespectPause" Grid.Column="1" Style="{StaticResource Switch}"/>
+              </Grid>
+            </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Timer" Margin="2,22,0,10"/>
             <Border Style="{StaticResource SettingCard}">
               <Grid>
@@ -1347,6 +1357,9 @@ function Show-WatchdogWindow {
         elseif ($State.Status -eq 'Playing') {
             'Sound is coming through.'
         }
+        elseif ($State.PausedByYou -and $Settings.RespectPause) {
+            'Watching. You paused Apple Music, so it stays paused until you press play.'
+        }
         else {
             'Watching. Waiting for Apple Music to play.'
         }
@@ -1524,6 +1537,7 @@ function Show-WatchdogWindow {
     $ui.FadeOut.IsChecked = $Settings.FadeOut
     $ui.CloseToTray.IsChecked = $Settings.CloseToTray
     $ui.RestartAppleMusic.IsChecked = $Settings.RestartAppleMusic
+    $ui.RespectPause.IsChecked = $Settings.RespectPause
 
     $ui.SilentDown.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $false $silentSteps; Save-WatchdogSetting; Update-Display })
     $ui.SilentUp.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $true $silentSteps; Save-WatchdogSetting; Update-Display })
@@ -1567,6 +1581,8 @@ function Show-WatchdogWindow {
     $ui.StartAtSignIn.Add_Checked($onStartAtSignIn); $ui.StartAtSignIn.Add_Unchecked($onStartAtSignIn)
     $onRestartAppleMusic = { $Settings.RestartAppleMusic = [bool]$ui.RestartAppleMusic.IsChecked; Save-WatchdogSetting }
     $ui.RestartAppleMusic.Add_Checked($onRestartAppleMusic); $ui.RestartAppleMusic.Add_Unchecked($onRestartAppleMusic)
+    $onRespectPause = { $Settings.RespectPause = [bool]$ui.RespectPause.IsChecked; Save-WatchdogSetting; Update-Display }
+    $ui.RespectPause.Add_Checked($onRespectPause); $ui.RespectPause.Add_Unchecked($onRespectPause)
     $ui.HoursDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 60) })
     $ui.HoursUp.Add_Click({ Set-TimerLength ((Get-TimerLength) + 60) })
     $ui.MinutesDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 5) })
