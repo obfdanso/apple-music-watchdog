@@ -706,7 +706,7 @@ $WindowXaml = @'
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
                   <TextBlock Style="{StaticResource RowTitle}" Text="Pause and play after"/>
-                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. Keep it longer than the gap between songs."/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. Keep it longer than the gap between songs. If pausing and playing doesn't work twice in a row, it restarts the song, then skips to the next one."/>
                 </StackPanel>
                 <Border Grid.Column="1" Style="{StaticResource Stepper}">
                   <StackPanel Orientation="Horizontal">
@@ -731,6 +731,16 @@ $WindowXaml = @'
                     <Button x:Name="CooldownUp" Style="{StaticResource StepButton}" Content="&#xE710;"/>
                   </StackPanel>
                 </Border>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Restart Apple Music as a last resort"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="If nothing else brings the sound back, close Apple Music, open it again and press play. At most once every half hour."/>
+                </StackPanel>
+                <CheckBox x:Name="RestartAppleMusic" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
             </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Timer" Margin="2,22,0,10"/>
@@ -1080,6 +1090,7 @@ function Show-WatchdogWindow {
         if ($Settings.PauseWhenDone) {
             # Don't let a fix that's under way press play again afterwards.
             $State.Phase = 'Watching'
+            $State.FixKind = ''
             $State.FixSession = $null
             $session = Get-AppleMusicSession $State.Manager
             if ($session -and $session.GetPlaybackInfo().PlaybackStatus -eq 'Playing') {
@@ -1160,7 +1171,12 @@ function Show-WatchdogWindow {
         }
         elseif ($State.Phase -ne 'Watching') {
             $dot = $colors.Accent
-            'No sound came through. Pausing and playing again...'
+            switch ($State.FixKind) {
+                'RestartSong' { 'Still no sound. Restarting the song...' }
+                'NextSong' { 'Still no sound. Skipping to the next song...' }
+                'RestartApp' { 'Still no sound. Restarting Apple Music...' }
+                default { if ($State.FailedFixes) { 'Still no sound. Pausing and playing again...' } else { 'No sound came through. Pausing and playing again...' } }
+            }
         }
         elseif ($State.SilentSince) {
             $dot = $colors.Amber
@@ -1324,6 +1340,7 @@ function Show-WatchdogWindow {
     $ui.StopAfter.IsChecked = $Settings.StopAfterEnabled
     $ui.PauseWhenDone.IsChecked = $Settings.PauseWhenDone
     $ui.CloseToTray.IsChecked = $Settings.CloseToTray
+    $ui.RestartAppleMusic.IsChecked = $Settings.RestartAppleMusic
 
     $ui.SilentDown.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $false $silentSteps; Save-WatchdogSetting; Update-Display })
     $ui.SilentUp.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $true $silentSteps; Save-WatchdogSetting; Update-Display })
@@ -1338,6 +1355,8 @@ function Show-WatchdogWindow {
     $ui.PauseWhenDone.Add_Checked($onPauseWhenDone); $ui.PauseWhenDone.Add_Unchecked($onPauseWhenDone)
     $onCloseToTray = { $Settings.CloseToTray = [bool]$ui.CloseToTray.IsChecked; Save-WatchdogSetting; Update-Tray; Update-Display }
     $ui.CloseToTray.Add_Checked($onCloseToTray); $ui.CloseToTray.Add_Unchecked($onCloseToTray)
+    $onRestartAppleMusic = { $Settings.RestartAppleMusic = [bool]$ui.RestartAppleMusic.IsChecked; Save-WatchdogSetting }
+    $ui.RestartAppleMusic.Add_Checked($onRestartAppleMusic); $ui.RestartAppleMusic.Add_Unchecked($onRestartAppleMusic)
     $ui.HoursDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 60) })
     $ui.HoursUp.Add_Click({ Set-TimerLength ((Get-TimerLength) + 60) })
     $ui.MinutesDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 5) })
