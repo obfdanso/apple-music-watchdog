@@ -108,10 +108,12 @@ $Settings = @{
     StopAfterHours   = 1
     StopAfterMinutes = 0
     PauseWhenDone    = $true
+    FadeOut          = $true               # fade the music out over the timer's last 30 seconds
     CloseToTray      = $false
     RestartAppleMusic = $true              # as a last resort, when nothing else brings the sound back
     Font             = 'Default'           # 'Default', 'System' (SystemFont below) or 'Anthropic'
     SystemFont       = ''
+    RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
 }
 
 if (Test-Path $SettingsPath) {
@@ -149,9 +151,12 @@ $Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 
 $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 $CooldownSeconds
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
-foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'CloseToTray', 'RestartAppleMusic') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
+foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
 if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
+$volume = 0.0
+if (-not [double]::TryParse([string]$Settings.RestoreVolume, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$volume) -or $volume -gt 1) { $volume = -1.0 }
+$Settings.RestoreVolume = $volume
 
 function Save-WatchdogSetting {
     $dir = Split-Path $SettingsPath
@@ -220,6 +225,7 @@ $State = @{
     ProbeAt       = [datetime]::MinValue   # when to check again while the internet is down
     OfflineSince  = $null
     StoppedAt     = $null                  # when Apple Music stopped playing while the internet was down
+    FadeFrom      = -1.0                   # Apple Music's volume before the timer started fading it out
 }
 
 # The ways the watchdog tries to get the sound back, gentlest first. Each time one
@@ -353,6 +359,13 @@ function Invoke-WatchdogStep {
         $State.Status = if ($session) { [string]$session.GetPlaybackInfo().PlaybackStatus } else { 'Not running' }
         $playing = $State.Status -eq 'Playing'
         $State.Level = [AppAudio]::GetPeak($AudioProcesses)
+        if ($Settings.RestoreVolume -ge 0 -and $State.FadeFrom -lt 0 -and $State.Level -ge 0) {
+            # A fade-out was cut short last time (the PC shut down, say): put the volume back.
+            [AppAudio]::SetVolume($AudioProcesses, $Settings.RestoreVolume)
+            $Settings.RestoreVolume = -1.0
+            Save-WatchdogSetting
+            Add-LogLine 'Put the volume back after an unfinished fade-out'
+        }
         [AppAudio]::SetKeepAwake($State.Active -and $playing -and $Settings.KeepAwake)
 
         if (-not $session) {
@@ -600,6 +613,15 @@ finally {
             Add-LogLine 'Pressed play again before stopping'
         }
         catch { Write-Verbose "Couldn't press play again: $($_.Exception.Message)" }
+    }
+    if ($State.FadeFrom -ge 0) {
+        # Stopped while fading the music out: put the volume back.
+        try {
+            [AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom)
+            $Settings.RestoreVolume = -1.0
+            Save-WatchdogSetting
+        }
+        catch { Write-Verbose "Couldn't put the volume back: $($_.Exception.Message)" }
     }
     [AppAudio]::SetKeepAwake($false)
     $stopEvent.Dispose()
