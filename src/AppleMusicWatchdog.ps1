@@ -31,6 +31,10 @@
 .PARAMETER LogPath
     Where to write the log.
 
+.PARAMETER CheckHost
+    The server the watchdog connects to, to tell whether the internet is
+    working before it tries a fix. One of Apple Music's own.
+
 .PARAMETER AllowSleep
     Let the PC go to sleep as usual. By default the watchdog keeps it awake
     while Apple Music is playing.
@@ -62,6 +66,8 @@ param(
     [double]$Threshold = 0.0005,
 
     [string]$LogPath = (Join-Path $env:LOCALAPPDATA 'AppleMusicWatchdog\watchdog.log'),
+
+    [string]$CheckHost = 'amp-api.music.apple.com',
 
     [switch]$AllowSleep,
 
@@ -208,6 +214,12 @@ $State = @{
     AppId         = ''                     # Apple Music's app ID, to open it again after a restart
     RestartedAt   = [datetime]::MinValue   # when the watchdog last restarted Apple Music
     BackAt        = $null                  # when Apple Music came back after a restart
+    Probe         = $null                  # the connection check under way, if any
+    ProbeTask     = $null
+    ProbeUntil    = [datetime]::MinValue   # when it counts as failed
+    ProbeAt       = [datetime]::MinValue   # when to check again while the internet is down
+    OfflineSince  = $null
+    StoppedAt     = $null                  # when Apple Music stopped playing while the internet was down
 }
 
 # The ways the watchdog tries to get the sound back, gentlest first. Each time one
@@ -227,6 +239,35 @@ function Add-LogLine([string]$Message) {
     Write-Verbose $line
 }
 
+# Starts checking, in the background, whether Apple Music's servers can be reached.
+# Pausing and playing can't help while they can't.
+function Start-ConnectionCheck {
+    Stop-ConnectionCheck
+    $State.Probe = New-Object System.Net.Sockets.TcpClient
+    $State.ProbeTask = $State.Probe.ConnectAsync($CheckHost, 443)
+    $State.ProbeUntil = (Get-Date).AddSeconds(5)
+}
+
+# The result of the connection check: $true (online), $false (offline), or $null
+# while it's still going.
+function Get-ConnectionResult {
+    $task = $State.ProbeTask
+    if ($task.IsCompleted) {
+        $online = $task.Status -eq 'RanToCompletion'
+        [void]$task.Exception   # seen, so .NET doesn't report it as unhandled
+    }
+    elseif ((Get-Date) -ge $State.ProbeUntil) { $online = $false }
+    else { return $null }
+    Stop-ConnectionCheck
+    $online
+}
+
+function Stop-ConnectionCheck {
+    if ($State.Probe) { $State.Probe.Dispose() }
+    $State.Probe = $null
+    $State.ProbeTask = $null
+}
+
 # Which fix to try next, given how many in a row haven't worked.
 function Get-FixKind($Session) {
     if ($State.FailedFixes -eq $FixSteps.Count -and $Settings.RestartAppleMusic -and ((Get-Date) - $State.RestartedAt).TotalMinutes -ge 30) {
@@ -241,7 +282,7 @@ function Get-FixKind($Session) {
 }
 
 # Starts a fix. The rest of it happens over the next few calls of Invoke-WatchdogStep.
-function Start-Fix($Session, [string]$Kind, [datetime]$Now, [double]$SilentFor) {
+function Start-Fix($Session, [string]$Kind, [datetime]$Now, [string]$Reason) {
     $State.Fixes++
     $State.FixKind = $Kind
     $State.FixSession = $Session
@@ -253,9 +294,15 @@ function Start-Fix($Session, [string]$Kind, [datetime]$Now, [double]$SilentFor) 
         'RestartSong' { 'Restarting the song' }
         'NextSong' { 'Skipping to the next song' }
         'RestartApp' { 'Restarting Apple Music' }
+        'Play' { 'Pressing play' }
     }
-    Add-LogLine ("Silent for {0:N0}s while 'Playing' ('{1}'). {2} (fix #{3})." -f $SilentFor, $title, $doing, $State.Fixes)
+    Add-LogLine ("{0} ('{1}'). {2} (fix #{3})." -f $Reason, $title, $doing, $State.Fixes)
     switch ($Kind) {
+        'Play' {
+            [void](Wait-AsyncOperation ($Session.TryPlayAsync()) ([bool]))
+            $State.Phase = 'Resumed'
+            $State.PhaseAt = $Now.AddSeconds(4)
+        }
         'PausePlay' {
             [void](Wait-AsyncOperation ($Session.TryPauseAsync()) ([bool]))
             $State.Phase = 'Paused'
@@ -345,7 +392,57 @@ function Invoke-WatchdogStep {
             $State.Duration = 0
         }
 
+        $silentFor = if ($State.SilentSince) { ($now - $State.SilentSince).TotalSeconds } else { 0 }
         switch ($State.Phase) {
+            'Checking' {
+                # About to fix: first, is the internet working?
+                $online = Get-ConnectionResult
+                if (-not $State.Active -or -not $playing -or $State.Level -ge $Threshold) {
+                    # Sorted itself out (or you stopped watching) in the meantime.
+                    Stop-ConnectionCheck
+                    $State.Phase = 'Watching'
+                }
+                elseif ($online -eq $true) {
+                    $State.Phase = 'Watching'
+                    Start-Fix $session (Get-FixKind $session) $now ("Silent for {0:N0}s while 'Playing'" -f $silentFor)
+                }
+                elseif ($online -eq $false) {
+                    Add-LogLine "Silent, and Apple Music can't be reached. Waiting for the connection to come back."
+                    $State.Phase = 'Offline'
+                    $State.OfflineSince = $now
+                    $State.ProbeAt = $now.AddSeconds(5)
+                    $State.StoppedAt = $null
+                }
+            }
+            'Offline' {
+                # Waiting for the internet. Checks again every 5 seconds, then fixes the
+                # sound straight away.
+                if ($playing) { $State.StoppedAt = $null } elseif ($session -and -not $State.StoppedAt) { $State.StoppedAt = $now }
+                $online = $null
+                if ($State.Probe) {
+                    $online = Get-ConnectionResult
+                    if ($online -eq $false) { $State.ProbeAt = $now.AddSeconds(5) }
+                }
+                elseif ($now -ge $State.ProbeAt) { Start-ConnectionCheck }
+
+                if (-not $State.Active -or ($playing -and $State.Level -ge $Threshold)) {
+                    # You stopped watching, or the sound came back by itself.
+                    if ($State.Active) { Add-LogLine 'Sound came back' }
+                    Stop-ConnectionCheck
+                    $State.Phase = 'Watching'
+                    $State.SilentSince = $null
+                }
+                elseif ($online -eq $true) {
+                    Add-LogLine ('The connection is back after {0:N0}s' -f ($now - $State.OfflineSince).TotalSeconds)
+                    $State.Phase = 'Watching'
+                    if ($playing) {
+                        Start-Fix $session (Get-FixKind $session) $now 'Still silent after the connection came back'
+                    }
+                    elseif ($session -and $State.StoppedAt -and ($now - $State.StoppedAt).TotalMinutes -lt 10) {
+                        Start-Fix $session 'Play' $now 'Apple Music stopped while the connection was down'
+                    }
+                }
+            }
             'Paused' {
                 if ($now -ge $State.PhaseAt) {
                     # Already playing again if you pressed play yourself in the meantime.
@@ -404,7 +501,8 @@ function Invoke-WatchdogStep {
                 $silentFor = if ($State.SilentSince) { ($now - $State.SilentSince).TotalSeconds } else { 0 }
 
                 if ($silentFor -ge $Settings.SilentSeconds -and $now -ge $State.CooldownUntil) {
-                    Start-Fix $session (Get-FixKind $session) $now $silentFor
+                    Start-ConnectionCheck
+                    $State.Phase = 'Checking'
                 }
             }
         }
@@ -421,6 +519,7 @@ function Invoke-WatchdogStep {
         $State.Phase = 'Watching'
         $State.FixKind = ''
         $State.FixSession = $null
+        Stop-ConnectionCheck
     }
 }
 
