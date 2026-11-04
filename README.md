@@ -14,7 +14,8 @@ A small script keeps an eye on Apple Music, either in a window or quietly in the
 
 - It only touches Apple Music. Other apps playing or paused in the background are left alone.
 - The gap between songs and quiet intros are shorter than 12 seconds, so they don't set it off.
-- If the connection is down for a long time, it waits at least 20 seconds between attempts.
+- If pausing and playing twice doesn't bring the sound back, it restarts the song, then skips to the next one. As a last resort it closes Apple Music, opens it again and presses play (at most once every half hour, and you can turn that off).
+- Before each fix it checks that Apple Music's servers can be reached. If the internet is down, it waits for it to come back instead of pausing and playing over and over, then fixes the sound straight away. Between attempts it waits at least 20 seconds.
 - While Apple Music is playing, it stops the PC from going to sleep. Otherwise sleep works as normal.
 - It logs each fix so you can see in the morning what happened.
 
@@ -38,7 +39,7 @@ That's it. It watches Apple Music until you press **Stop Watching** or close the
 
 The first time the window opens, it adds an **Apple Music Watchdog** shortcut to the project folder and to your Start menu. Use that from then on. It opens the window straight away, without the console window that briefly appears when you double-click `watchdog.cmd`.
 
-If you'd rather not have a window, run `watchdog start` instead and it runs in the background until you stop it or restart your PC. To have it start in the background every time you sign in to Windows, open a terminal in the project folder and run:
+If you'd rather not have a window, run `watchdog start` instead and it runs in the background until you stop it or restart your PC. To have it start in the background every time you sign in to Windows, turn on **Start when I sign in** in the window's Settings, or open a terminal in the project folder and run:
 
 ```
 watchdog install
@@ -46,16 +47,18 @@ watchdog install
 
 ## The window
 
-The window is styled after the Apple Music app and follows your Windows light or dark mode. Along the top you'll see whether it's watching, the current song with its artwork and how far into it you are, and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
+The window is styled after the Apple Music app and follows your Windows light or dark mode. Along the top you'll see whether it's watching, previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are, and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
 
-- **Now Playing:** the song and artwork, a live waveform of the sound coming out of Apple Music, and what the watchdog is doing about it, such as "No sound for 5 sec. Pausing and playing at 12 sec." Below that, how many times it has fixed the music and whether the sound came back the last time, how long it has been watching, the timer, and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
-- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, the timer (see below), whether to keep the PC awake while music plays, the window's font, and whether closing the window hides it in the tray. Changes take effect straight away.
+- **Now Playing:** the song and artwork, a live waveform of the sound coming out of Apple Music, and what the watchdog is doing about it, such as "No sound for 5 sec. Pausing and playing at 12 sec." or "Waiting for the internet to come back". Below that, how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
+- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), the timer, whether to keep the PC awake while music plays, the window's font, whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
 
-For the **timer**, turn on **Stop after a set time** in Settings and pick a duration, or tap one of the presets (15 minutes to 4 hours). The countdown starts when you press **Start Watching**. When the time is up it stops watching and, unless you turn that off, pauses Apple Music.
+For the **timer**, turn on **Stop after a set time** in Settings and pick a duration, or tap one of the presets (15 minutes to 4 hours). The countdown starts when you press **Start Watching**. When the time is up it stops watching and, unless you turn that off, pauses Apple Music. With **Fade out first** on, it turns Apple Music down slowly over the last 30 seconds before pausing, then puts the volume back.
+
+The watchdog only fixes songs that Apple Music says are playing, so a song you pause is left alone. The one exception: if Apple Music stops while the internet is down, the watchdog presses play once the connection is back, because it can't tell whether you paused it or Apple Music gave up. Turn on **Stay paused when I pause** and it never presses play on paused music.
 
 Every fix is also written to the log (see [The log](#the-log)).
 
-Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to start or stop watching or to quit. Opening the shortcut again also brings the window back.
+Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to see the current song, play, pause or skip, start or stop watching, or quit. Opening the shortcut again also brings the window back.
 
 For the font there are three choices: **Default** (Segoe UI Variable), **System font** (any font installed on your PC, picked from a searchable list) and **Anthropic Sans**. Anthropic Sans isn't included because it isn't freely licensed. If you have it, install it, or put its font files in the [`fonts`](fonts) folder.
 
@@ -97,9 +100,12 @@ Every fix is written to `%LOCALAPPDATA%\AppleMusicWatchdog\watchdog.log`:
 ```
 2026-11-04 03:12:40  Silent for 12s while 'Playing' ('Some Song'). Pausing and resuming (fix #1).
 2026-11-04 03:12:45  After resume: level=0.3821
+2026-11-04 04:20:02  Silent, and Apple Music can't be reached. Waiting for the connection to come back.
+2026-11-04 04:21:37  The connection is back after 95s
+2026-11-04 04:21:37  Still silent after the connection came back ('Other Song'). Pausing and resuming (fix #2).
 ```
 
-A level above zero after the resume means the sound came back. A zero usually means the connection was still down or the song was still buffering. If it stays silent, the watchdog tries again after the cooldown. The log rolls over at 1 MB.
+A level above zero after the resume means the sound came back. A zero usually means the song was still buffering. If it stays silent, the watchdog tries its next fix after the cooldown. The log rolls over at 1 MB.
 
 ## Settings
 
@@ -118,20 +124,23 @@ powershell.exe -ExecutionPolicy Bypass -File .\src\AppleMusicWatchdog.ps1 -Silen
 | `-Threshold`       | 0.0005  | Sound level (0 to 1) that counts as silence                       |
 | `-AllowSleep`      | off     | Let the PC sleep even while music is playing                      |
 | `-LogPath`         | see above | Where to write the log                                          |
+| `-CheckHost`       | `amp-api.music.apple.com` | Server it connects to, to check the internet before a fix |
 
 ## Good to know
 
 - **Laptop lid:** keeping the PC awake doesn't stop it sleeping when you close the lid. If you want music with the lid shut, set "When I close the lid" to "Do nothing" in Windows power settings.
-- **Restarts:** after a restart it only comes back on its own if you ran `watchdog install`.
+- **Restarts:** after a restart it only comes back on its own if you turned on **Start when I sign in** (or ran `watchdog install`).
+- **Restarting Apple Music:** when the watchdog restarts Apple Music as a last resort, Apple Music may not pick up exactly where it left off and can start a different song.
 - **Console window:** Windows always opens a console window for a moment when you double-click a `.cmd` file. The **Apple Music Watchdog** shortcut doesn't, and neither does the watchdog when it starts in the background or at sign-in.
 - **Taskbar:** the window shows up on the taskbar with its own icon. If you pin it, the pin opens the window the same way the shortcut does.
 
 ## How it works
 
 - **Is Apple Music playing?** Windows exposes each media app's playback state through its media controls (the same ones behind your keyboard's play/pause key). The script reads Apple Music's state there and uses the same controls to pause and play.
-- **Is any sound coming out?** The Windows Core Audio API reports a live level meter for each app's audio stream. Apple Music sends its sound through a helper process called `AMPLibraryAgent.exe`, so that's the stream the script measures.
+- **Is any sound coming out?** The Windows Core Audio API reports a live level meter for each app's audio stream. Apple Music sends its sound through a helper process called `AMPLibraryAgent.exe`, so that's the stream the script measures. The same API sets Apple Music's volume in the Windows volume mixer for the timer's fade-out.
+- **Is the internet working?** Before a fix, it tries to connect to one of Apple Music's servers. If that fails, pausing and playing can't help, so it waits and tries again every 5 seconds.
 
-The code is in [`src/AppleMusicWatchdog.ps1`](src/AppleMusicWatchdog.ps1) (main loop), [`src/WatchdogWindow.ps1`](src/WatchdogWindow.ps1) (the window), [`src/AppAudio.cs`](src/AppAudio.cs) (audio meter and output device), [`src/WindowsShell.cs`](src/WindowsShell.cs) (taskbar icon and shortcuts) and [`src/Waveform.cs`](src/Waveform.cs) (the waveform), with [`src/Manage.ps1`](src/Manage.ps1) behind the `watchdog` commands.
+The code is in [`src/AppleMusicWatchdog.ps1`](src/AppleMusicWatchdog.ps1) (main loop), [`src/WatchdogWindow.ps1`](src/WatchdogWindow.ps1) (the window), [`src/AppAudio.cs`](src/AppAudio.cs) (audio meter, volume and output device), [`src/WindowsShell.cs`](src/WindowsShell.cs) (taskbar icon and shortcuts), [`src/Waveform.cs`](src/Waveform.cs) (the waveform) and [`src/Autostart.ps1`](src/Autostart.ps1) (starting at sign-in), with [`src/Manage.ps1`](src/Manage.ps1) behind the `watchdog` commands.
 
 ## Uninstalling
 
