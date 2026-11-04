@@ -14,6 +14,7 @@ Add-Type -Namespace AppleMusicWatchdog -Name Dwm -MemberDefinition @'
 '@
 [void][Windows.Storage.Streams.IRandomAccessStreamWithContentType, Windows.Storage.Streams, ContentType = WindowsRuntime]
 Add-Type -Path (Join-Path $PSScriptRoot 'WindowsShell.cs')
+. (Join-Path $PSScriptRoot 'Autostart.ps1')
 Add-Type -Path (Join-Path $PSScriptRoot 'Waveform.cs') -ReferencedAssemblies PresentationFramework, PresentationCore, WindowsBase, System.Xaml
 
 $WindowTitle = 'Apple Music Watchdog'
@@ -858,6 +859,16 @@ $WindowXaml = @'
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Start when I sign in"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="The watchdog starts watching in the background when you sign in to Windows, without opening this window. Opening the window takes over from it."/>
+                </StackPanel>
+                <CheckBox x:Name="StartAtSignIn" Grid.Column="1" Style="{StaticResource Switch}"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
                   <TextBlock Style="{StaticResource RowTitle}" Text="Keep running in the tray when closed"/>
                   <TextBlock Style="{StaticResource RowHint}" Text="Closing the window hides it in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to open it again, or right-click it to quit."/>
                 </StackPanel>
@@ -1475,6 +1486,31 @@ function Show-WatchdogWindow {
     $ui.FadeOut.Add_Checked($onFadeOut); $ui.FadeOut.Add_Unchecked($onFadeOut)
     $onCloseToTray = { $Settings.CloseToTray = [bool]$ui.CloseToTray.IsChecked; Save-WatchdogSetting; Update-Tray; Update-Display }
     $ui.CloseToTray.Add_Checked($onCloseToTray); $ui.CloseToTray.Add_Unchecked($onCloseToTray)
+    # Start at sign-in is a scheduled task, not a saved setting (see Autostart.ps1), so
+    # 'watchdog install' and this switch agree. Looked up once the window is showing,
+    # since that takes a moment.
+    $ui.SignInReady = $false
+    $onStartAtSignIn = {
+        if (-not $ui.SignInReady) { return }
+        try {
+            if ($ui.StartAtSignIn.IsChecked) {
+                Register-WatchdogAutostart
+                Add-LogLine 'The watchdog will start when you sign in'
+            }
+            else {
+                Unregister-WatchdogAutostart
+                Add-LogLine 'The watchdog will no longer start when you sign in'
+            }
+        }
+        catch {
+            Add-LogLine "Couldn't change starting at sign-in: $($_.Exception.Message)"
+            Show-WatchdogError "Couldn't change whether the watchdog starts when you sign in: $($_.Exception.Message)"
+            $ui.SignInReady = $false
+            $ui.StartAtSignIn.IsChecked = Test-WatchdogAutostart
+            $ui.SignInReady = $true
+        }
+    }
+    $ui.StartAtSignIn.Add_Checked($onStartAtSignIn); $ui.StartAtSignIn.Add_Unchecked($onStartAtSignIn)
     $onRestartAppleMusic = { $Settings.RestartAppleMusic = [bool]$ui.RestartAppleMusic.IsChecked; Save-WatchdogSetting }
     $ui.RestartAppleMusic.Add_Checked($onRestartAppleMusic); $ui.RestartAppleMusic.Add_Unchecked($onRestartAppleMusic)
     $ui.HoursDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 60) })
@@ -1599,6 +1635,9 @@ function Show-WatchdogWindow {
             Start-Animation $ui.Shell ([System.Windows.UIElement]::OpacityProperty) 1 350 0
             try { Update-WatchdogShortcut $iconData }
             catch { Add-LogLine "Couldn't create the Apple Music Watchdog shortcuts: $($_.Exception.Message)" }
+            try { $ui.StartAtSignIn.IsChecked = Test-WatchdogAutostart }
+            catch { Add-LogLine "Couldn't check whether the watchdog starts at sign-in: $($_.Exception.Message)" }
+            $ui.SignInReady = $true
         })
 
     Reset-Deadline
