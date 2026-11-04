@@ -372,6 +372,15 @@ catch {
     throw
 }
 finally {
+    # Stopped halfway through a fix (paused, not played again yet): press play so
+    # the music isn't left paused.
+    if ($State.Phase -eq 'Paused' -and $State.FixSession) {
+        try {
+            [void](Wait-AsyncOperation ($State.FixSession.TryPlayAsync()) ([bool]))
+            Add-LogLine 'Pressed play again before stopping'
+        }
+        catch { Write-Verbose "Couldn't press play again: $($_.Exception.Message)" }
+    }
     [AppAudio]::SetKeepAwake($false)
     $stopEvent.Dispose()
     $mutex.ReleaseMutex()
