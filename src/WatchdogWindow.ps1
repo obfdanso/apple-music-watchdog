@@ -865,6 +865,13 @@ function Show-WatchdogWindow {
         $brush[$key].Freeze()
     }
 
+    # An error in a button or switch (say the settings file is locked for a moment)
+    # shouldn't close the window and stop the watchdog: log it and carry on.
+    $window.Dispatcher.Add_UnhandledException({
+            Add-LogLine "Error: $($_.Exception.Message)"
+            $_.Handled = $true
+        })
+
     # Title bar in the same colours as the window (Windows 11; ignored elsewhere).
     # Event handlers here are plain script blocks, not closures, so they can call
     # the functions defined in this function; they run while the window is open.
