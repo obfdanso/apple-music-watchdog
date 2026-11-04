@@ -1503,6 +1503,13 @@ function Show-WatchdogWindow {
     $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
     $trayOpen = $trayMenu.Items.Add('Open Apple Music Watchdog')
     $trayOpen.Font = New-Object System.Drawing.Font($trayOpen.Font, [System.Drawing.FontStyle]::Bold)
+    [void]$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+    $traySong = $trayMenu.Items.Add('')
+    $traySong.Enabled = $false
+    $trayPlay = $trayMenu.Items.Add('Play')
+    $trayNext = $trayMenu.Items.Add('Next')
+    $trayPrevious = $trayMenu.Items.Add('Previous')
+    [void]$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
     $trayToggle = $trayMenu.Items.Add('Start Watching')
     [void]$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
     $trayQuit = $trayMenu.Items.Add('Quit')
@@ -1538,7 +1545,18 @@ function Show-WatchdogWindow {
             Update-Tray
         })
     $trayQuit.Add_Click({ $ui.Quitting = $true; $window.Close() })
-    $trayMenu.Add_Opening({ $trayToggle.Text = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' } })
+    $trayPlay.Add_Click({ Invoke-MediaButton 'PlayPause' })
+    $trayNext.Add_Click({ Invoke-MediaButton 'Next' })
+    $trayPrevious.Add_Click({ Invoke-MediaButton 'Previous' })
+    $trayMenu.Add_Opening({
+            $trayToggle.Text = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' }
+            $hasApp = $State.Status -ne 'Not running'
+            $song = if ($State.Title) { $State.Title } elseif ($hasApp) { 'Nothing playing' } else { 'Apple Music isn''t open' }
+            if ($song.Length -gt 48) { $song = $song.Substring(0, 47) + '...' }
+            $traySong.Text = $song.Replace('&', '&&')   # a single & would underline the next letter
+            $trayPlay.Text = if ($State.Status -eq 'Playing') { 'Pause' } else { 'Play' }
+            foreach ($item in $trayPlay, $trayNext, $trayPrevious) { $item.Enabled = $hasApp }
+        })
     $tray.Add_MouseClick({ if ($_.Button -eq 'Left') { Show-FromTray } })
 
     # Opening the app again (shortcut or 'watchdog ui') sets this to bring the window back.
