@@ -11,11 +11,19 @@
 - Works when started from PowerShell 7 by handing over to Windows PowerShell 5.1.
 - `watchdog stop` now lets the watchdog shut down cleanly and log that it stopped.
 - The audio check uses about a sixth of the CPU it did.
+- If pausing and playing twice doesn't bring the sound back, the watchdog restarts the song, then skips to the next one, and as a last resort restarts Apple Music (at most every half hour, and it can be turned off).
+- Checks the internet before a fix. While it's down, the watchdog waits instead of pausing and playing over and over, then fixes the sound as soon as it's back, pressing play if Apple Music stopped in the meantime.
+- **Stay paused when I pause** setting: the watchdog never presses play on music that's paused.
+- The timer can fade Apple Music out over its last 30 seconds before pausing it, then puts the volume back.
+- Previous, play/pause and next buttons in the window's top bar, and the current song with play controls in the tray menu.
+- **Start when I sign in** switch in Settings, which does the same as `watchdog install`.
+- A **Last fix** card on Now Playing: what the last fix did, during which song, and whether the sound came back.
 - If the watchdog stops halfway through a fix, it presses play again instead of leaving the music paused.
 - A bad value in the settings file no longer stops the watchdog from starting.
 - An error in a window button or switch is logged instead of closing the watchdog.
 - `watchdog stop` and `watchdog status` no longer mistake other PowerShell commands for the watchdog.
 - The artwork shows up even when Apple Music sends it a moment after the song title.
+- The song position on the progress bar is no longer rounded to whole seconds.
 
 ## 0.1.0 - 2026-11-04
 
