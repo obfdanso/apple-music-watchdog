@@ -1082,7 +1082,9 @@ function Show-WatchdogWindow {
 
     # Shows the current song's artwork, or a music note when there is none.
     function Update-Artwork {
-        $key = '{0}|{1}' -f $State.Title, $State.Artist
+        # Includes whether there's artwork yet: Apple Music sometimes sends it a moment
+        # after the title, and it should still show up when it does.
+        $key = '{0}|{1}|{2}' -f $State.Title, $State.Artist, [bool]$State.Artwork
         if ($key -eq $ui.ArtFor) { return }
         $ui.ArtFor = $key
         $image = $null
