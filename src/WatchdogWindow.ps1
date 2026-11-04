@@ -975,8 +975,10 @@ function Show-WatchdogWindow {
         $ui.RouteAt = (Get-Date).AddSeconds(2)
         $outputs = @(try { [AppAudio]::GetOutputs($AudioProcesses) } catch { @() })
         if (-not $outputs) {
-            Set-Text $ui.RouteName 'No output device'
+            Set-Text $ui.RouteLabel 'Audio output'
+            Set-Text $ui.RouteName 'No output device found'
             Set-Text $ui.RouteKind ''
+            $ui.RouteIcon.Text = [string][char]0xE767
             return
         }
         $first = $outputs[0]
