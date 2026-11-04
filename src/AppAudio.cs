@@ -3,8 +3,9 @@
 // via Add-Type, so it must stay within C# 5 (what Windows PowerShell 5.1 ships).
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public static class AppAudio {
     [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCo {}
@@ -68,39 +69,90 @@ public static class AppAudio {
     // those processes has an audio session open.
     public static float GetPeak(string[] processNames) {
         float best = -1f;
-        var names = new Dictionary<uint, string>();
-        var enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumeratorCo());
-        IMMDeviceCollection devices;
-        enumerator.EnumAudioEndpoints(RenderFlow, DeviceStateActive, out devices);
-        int deviceCount;
-        devices.GetCount(out deviceCount);
-        Guid iidManager = typeof(IAudioSessionManager2).GUID;
-        for (int d = 0; d < deviceCount; d++) {
-            IMMDevice device;
-            devices.Item(d, out device);
-            object o;
-            device.Activate(ref iidManager, ClsCtxAll, IntPtr.Zero, out o);
-            IAudioSessionEnumerator sessions;
-            ((IAudioSessionManager2)o).GetSessionEnumerator(out sessions);
-            int sessionCount;
-            sessions.GetCount(out sessionCount);
-            for (int i = 0; i < sessionCount; i++) {
-                IAudioSessionControl2 session;
-                sessions.GetSession(i, out session);
-                uint pid;
-                session.GetProcessId(out pid);
-                string name;
-                if (!names.TryGetValue(pid, out name)) {
-                    try { name = Process.GetProcessById((int)pid).ProcessName; } catch { name = ""; }
-                    names[pid] = name;
+        var matches = new Dictionary<uint, bool>();
+        object enumerator = null, devices = null;
+        try {
+            enumerator = new MMDeviceEnumeratorCo();
+            IMMDeviceCollection deviceList;
+            ((IMMDeviceEnumerator)enumerator).EnumAudioEndpoints(RenderFlow, DeviceStateActive, out deviceList);
+            devices = deviceList;
+            int deviceCount;
+            deviceList.GetCount(out deviceCount);
+            Guid iidManager = typeof(IAudioSessionManager2).GUID;
+            for (int d = 0; d < deviceCount; d++) {
+                IMMDevice device = null;
+                object manager = null;
+                IAudioSessionEnumerator sessions = null;
+                try {
+                    deviceList.Item(d, out device);
+                    device.Activate(ref iidManager, ClsCtxAll, IntPtr.Zero, out manager);
+                    ((IAudioSessionManager2)manager).GetSessionEnumerator(out sessions);
+                    int sessionCount;
+                    sessions.GetCount(out sessionCount);
+                    for (int i = 0; i < sessionCount; i++) {
+                        IAudioSessionControl2 session = null;
+                        try {
+                            sessions.GetSession(i, out session);
+                            uint pid;
+                            session.GetProcessId(out pid);
+                            bool match;
+                            if (!matches.TryGetValue(pid, out match)) {
+                                match = IsNamed(pid, processNames);
+                                matches[pid] = match;
+                            }
+                            if (!match) continue;
+                            float peak;
+                            ((IAudioMeterInformation)session).GetPeakValue(out peak);
+                            if (peak > best) best = peak;
+                        }
+                        finally { Release(session); }
+                    }
                 }
-                if (Array.FindIndex(processNames, x => x.Equals(name, StringComparison.OrdinalIgnoreCase)) < 0) continue;
-                float peak;
-                ((IAudioMeterInformation)session).GetPeakValue(out peak);
-                if (peak > best) best = peak;
+                finally {
+                    Release(sessions);
+                    Release(manager);
+                    Release(device);
+                }
             }
         }
+        finally {
+            Release(devices);
+            Release(enumerator);
+        }
         return best;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern IntPtr OpenProcess(uint access, bool inheritHandle, uint pid);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool QueryFullProcessImageName(IntPtr process, uint flags, StringBuilder name, ref uint size);
+
+    [DllImport("kernel32.dll")]
+    static extern bool CloseHandle(IntPtr handle);
+
+    const uint ProcessQueryLimitedInformation = 0x1000;
+
+    // Whether the process has one of the given names (without ".exe"). Asks
+    // Windows about this one process only, which is much cheaper than listing
+    // every running process.
+    static bool IsNamed(uint pid, string[] processNames) {
+        IntPtr handle = OpenProcess(ProcessQueryLimitedInformation, false, pid);
+        if (handle == IntPtr.Zero) return false;
+        try {
+            var path = new StringBuilder(1024);
+            uint size = (uint)path.Capacity;
+            if (!QueryFullProcessImageName(handle, 0, path, ref size)) return false;
+            string name = Path.GetFileNameWithoutExtension(path.ToString());
+            return Array.Exists(processNames, x => x.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+        finally { CloseHandle(handle); }
+    }
+
+    // Free a COM object now instead of waiting for the garbage collector, since
+    // GetPeak runs every second for as long as the watchdog is running.
+    static void Release(object o) {
+        if (o != null && Marshal.IsComObject(o)) Marshal.ReleaseComObject(o);
     }
 
     [DllImport("kernel32.dll")]
