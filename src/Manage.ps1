@@ -19,9 +19,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'Autostart.ps1')
+
 $Watchdog = Join-Path $PSScriptRoot 'AppleMusicWatchdog.ps1'
 $LogPath = Join-Path $env:LOCALAPPDATA 'AppleMusicWatchdog\watchdog.log'
-$TaskName = 'AppleMusicWatchdog'
 # Always the built-in Windows PowerShell 5.1, even if this was launched from PowerShell 7.
 $PowerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $WatchdogArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Watchdog`""
@@ -45,10 +46,6 @@ function Open-Window {
     # If the watchdog is running in the background, the window takes over from it.
     # If the window is already open, it is brought to the front.
     Start-Process -FilePath $Conhost -ArgumentList "$HeadlessArgs -Window"
-}
-
-function Get-AutostartTask {
-    Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 }
 
 function Start-Watchdog {
@@ -97,7 +94,7 @@ function Show-Status {
     else {
         Write-Output 'Running: no'
     }
-    Write-Output ('Starts at sign-in: {0}' -f $(if (Get-AutostartTask) { 'yes' } else { 'no' }))
+    Write-Output ('Starts at sign-in: {0}' -f $(if (Test-WatchdogAutostart) { 'yes' } else { 'no' }))
     Write-Output "Log: $LogPath"
     if (Test-Path $LogPath) {
         Write-Output ''
@@ -107,22 +104,14 @@ function Show-Status {
 }
 
 function Install-Autostart {
-    $user = "$env:USERDOMAIN\$env:USERNAME"
-    $taskAction = New-ScheduledTaskAction -Execute $Conhost -Argument $HeadlessArgs
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
-    $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
-    # No time limit (the default stops tasks after 3 days) and keep going on battery.
-    $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
-        -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
-    Register-ScheduledTask -TaskName $TaskName -Action $taskAction -Trigger $trigger -Principal $principal `
-        -Settings $settings -Description 'Pauses and resumes Apple Music when it goes silent.' -Force | Out-Null
+    Register-WatchdogAutostart
     Write-Output 'The watchdog will now start automatically when you sign in.'
     Start-Watchdog
 }
 
 function Uninstall-Autostart {
-    if (Get-AutostartTask) {
-        Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+    if (Test-WatchdogAutostart) {
+        Unregister-WatchdogAutostart
         Write-Output 'The watchdog will no longer start when you sign in.'
     }
     else {
