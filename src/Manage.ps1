@@ -35,8 +35,10 @@ $ShortcutPaths = @(
 )
 
 function Get-WatchdogProcess {
+    # Only PowerShell actually running the script (-File ...AppleMusicWatchdog.ps1),
+    # not any command that happens to mention it, and not 'watchdog check'.
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
-        Where-Object { $_.CommandLine -like '*AppleMusicWatchdog.ps1*' -and $_.CommandLine -notlike '*-Check*' }
+        Where-Object { $_.CommandLine -match '-File\s+"?[^"]*AppleMusicWatchdog\.ps1' -and $_.CommandLine -notmatch '\s-Check\b' }
 }
 
 function Open-Window {
