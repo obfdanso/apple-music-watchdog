@@ -565,9 +565,10 @@ $WindowXaml = @'
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
-      <!-- Top bar: status, the now-playing display, and the on/off button -->
+      <!-- Top bar: status, Apple Music's controls, the now-playing display, and the on/off button -->
       <Grid Grid.Row="0" Margin="28,16,28,8">
         <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
@@ -579,8 +580,13 @@ $WindowXaml = @'
             <TextBlock x:Name="PillText" Text="Watching" FontSize="13.5" FontWeight="SemiBold" Margin="9,0,0,0"/>
           </StackPanel>
         </Border>
-        <Border Grid.Column="1" MaxWidth="440" Height="56" CornerRadius="9" Background="{{Card}}"
-                BorderBrush="{{Line}}" BorderThickness="1" Margin="16,0">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+          <Button x:Name="PreviousButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AC;" AutomationProperties.Name="Previous"/>
+          <Button x:Name="PlayButton" Style="{StaticResource StepButton}" FontSize="19" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
+          <Button x:Name="NextButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
+        </StackPanel>
+        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="9" Background="{{Card}}"
+                BorderBrush="{{Line}}" BorderThickness="1" Margin="12,0,16,0">
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="54"/>
@@ -611,7 +617,7 @@ $WindowXaml = @'
             </StackPanel>
           </Grid>
         </Border>
-        <Button x:Name="ToggleWatch" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
+        <Button x:Name="ToggleWatch" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center"
                 Style="{StaticResource Pill}" Content="Stop Watching"/>
       </Grid>
 
@@ -1161,6 +1167,30 @@ function Show-WatchdogWindow {
         }
     }
 
+    # The previous, play/pause and next buttons (in the top bar and the tray menu)
+    # control Apple Music directly.
+    function Invoke-MediaButton([string]$Action) {
+        $session = Get-AppleMusicSession $State.Manager
+        if (-not $session) { return }
+        # You're taking over, so a fix under way stops here.
+        if ($State.Phase -in 'Checking', 'Offline', 'Paused', 'Resumed') {
+            Stop-ConnectionCheck
+            $State.Phase = 'Watching'
+            $State.FixKind = ''
+            $State.FixSession = $null
+        }
+        $State.SilentSince = $null
+        $operation = switch ($Action) {
+            'Previous' { $session.TrySkipPreviousAsync() }
+            'Next' { $session.TrySkipNextAsync() }
+            default { if ($session.GetPlaybackInfo().PlaybackStatus -eq 'Playing') { $session.TryPauseAsync() } else { $session.TryPlayAsync() } }
+        }
+        [void](Wait-AsyncOperation $operation ([bool]))
+        $State.TitleAt = [datetime]::MinValue   # read the song again straight away
+        Invoke-WatchdogStep
+        Update-Display
+    }
+
     # Shows the current song's artwork, or a music note when there is none.
     function Update-Artwork {
         # Includes whether there's artwork yet: Apple Music sometimes sends it a moment
@@ -1224,6 +1254,11 @@ function Show-WatchdogWindow {
         }
         Update-Route
         $wave.Playing = $State.Status -eq 'Playing'
+        $hasApp = $State.Status -ne 'Not running'
+        foreach ($button in $ui.PreviousButton, $ui.PlayButton, $ui.NextButton) { $button.IsEnabled = $hasApp }
+        $playing = $State.Status -eq 'Playing'
+        $ui.PlayButton.Content = [string][char]$(if ($playing) { 0xF8AE } else { 0xF5B0 })
+        [System.Windows.Automation.AutomationProperties]::SetName($ui.PlayButton, $(if ($playing) { 'Pause' } else { 'Play' }))
 
         # What the watchdog is doing
         $dot = $colors.Green
@@ -1450,6 +1485,9 @@ function Show-WatchdogWindow {
         $ui["Preset$preset"].Tag = $preset
         $ui["Preset$preset"].Add_Click({ param($source) Set-TimerLength ([int]$source.Tag) })
     }
+    $ui.PreviousButton.Add_Click({ Invoke-MediaButton 'Previous' })
+    $ui.PlayButton.Add_Click({ Invoke-MediaButton 'PlayPause' })
+    $ui.NextButton.Add_Click({ Invoke-MediaButton 'Next' })
     $ui.ToggleWatch.Add_Click({
             if ($State.Active) { Stop-Watching 'Stopped watching' } else { Start-Watching }
             Update-Display
