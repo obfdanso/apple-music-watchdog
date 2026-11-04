@@ -18,6 +18,9 @@ jobs:
           $results | Format-Table -AutoSize
           if ($results) { exit 1 }
 
-      - name: Compile audio helper
+      - name: Compile C# helpers
         shell: powershell
-        run: Add-Type -Path src/AppAudio.cs
+        run: |
+          Add-Type -Path src/AppAudio.cs
+          Add-Type -Path src/WindowsShell.cs
+          Add-Type -Path src/Waveform.cs -ReferencedAssemblies PresentationFramework, PresentationCore, WindowsBase, System.Xaml

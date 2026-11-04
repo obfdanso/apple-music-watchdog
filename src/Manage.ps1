@@ -1,7 +1,10 @@
 <#
 .SYNOPSIS
-    Start, stop and check the Apple Music watchdog, or have it start when you sign in.
+    Open the Apple Music watchdog's window, start, stop and check it, or have it
+    start when you sign in.
 
+.EXAMPLE
+    .\Manage.ps1 ui
 .EXAMPLE
     .\Manage.ps1 start
 .EXAMPLE
@@ -10,8 +13,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('start', 'stop', 'restart', 'status', 'check', 'install', 'uninstall', 'log')]
-    [string]$Action = 'start'
+    [ValidateSet('ui', 'start', 'stop', 'restart', 'status', 'check', 'install', 'uninstall', 'log')]
+    [string]$Action = 'ui'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,10 +25,24 @@ $TaskName = 'AppleMusicWatchdog'
 # Always the built-in Windows PowerShell 5.1, even if this was launched from PowerShell 7.
 $PowerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $WatchdogArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$Watchdog`""
+# conhost --headless runs PowerShell with no console window at all, so nothing flashes
+# up on screen (not even when Windows Terminal is the default terminal).
+$Conhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
+$HeadlessArgs = "--headless `"$PowerShellExe`" $WatchdogArgs"
+$ShortcutPaths = @(
+    (Join-Path (Split-Path $PSScriptRoot) 'Apple Music Watchdog.lnk'),
+    (Join-Path ([Environment]::GetFolderPath('Programs')) 'Apple Music Watchdog.lnk')
+)
 
 function Get-WatchdogProcess {
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
-        Where-Object { $_.CommandLine -like '*AppleMusicWatchdog.ps1*' }
+        Where-Object { $_.CommandLine -like '*AppleMusicWatchdog.ps1*' -and $_.CommandLine -notlike '*-Check*' }
+}
+
+function Open-Window {
+    # If the watchdog is running in the background, the window takes over from it.
+    # If the window is already open, it is brought to the front.
+    Start-Process -FilePath $Conhost -ArgumentList "$HeadlessArgs -Window"
 }
 
 function Get-AutostartTask {
@@ -37,7 +54,7 @@ function Start-Watchdog {
         Write-Output 'The watchdog is already running.'
         return
     }
-    Start-Process -FilePath $PowerShellExe -ArgumentList $WatchdogArgs -WindowStyle Hidden
+    Start-Process -FilePath $Conhost -ArgumentList $HeadlessArgs
     Start-Sleep -Seconds 3
     if (Get-WatchdogProcess) {
         Write-Output 'Watchdog started. It runs in the background until you stop it or restart the PC.'
@@ -72,7 +89,8 @@ function Stop-Watchdog {
 function Show-Status {
     $processes = @(Get-WatchdogProcess)
     if ($processes) {
-        Write-Output "Running: yes (process $($processes.ProcessId -join ', '))"
+        $where = if ($processes | Where-Object { $_.CommandLine -match '\s-Window(\s|$)' }) { 'in the window' } else { 'in the background' }
+        Write-Output "Running: yes, $where (process $($processes.ProcessId -join ', '))"
     }
     else {
         Write-Output 'Running: no'
@@ -88,7 +106,7 @@ function Show-Status {
 
 function Install-Autostart {
     $user = "$env:USERDOMAIN\$env:USERNAME"
-    $taskAction = New-ScheduledTaskAction -Execute $PowerShellExe -Argument $WatchdogArgs
+    $taskAction = New-ScheduledTaskAction -Execute $Conhost -Argument $HeadlessArgs
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
     $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
     # No time limit (the default stops tasks after 3 days) and keep going on battery.
@@ -108,12 +126,19 @@ function Uninstall-Autostart {
     else {
         Write-Output 'Autostart was not set up.'
     }
+    # The window adds these shortcuts the first time it opens.
+    $shortcuts = @($ShortcutPaths | Where-Object { Test-Path $_ })
+    if ($shortcuts) {
+        $shortcuts | Remove-Item
+        Write-Output 'Removed the Apple Music Watchdog shortcuts from the Start menu and this folder.'
+    }
     if (Get-WatchdogProcess) {
         Write-Output "It is still running for now. Use 'watchdog stop' to stop it."
     }
 }
 
 switch ($Action) {
+    'ui' { Open-Window }
     'start' { Start-Watchdog }
     'stop' { Stop-Watchdog }
     'restart' { Stop-Watchdog; Start-Watchdog }
