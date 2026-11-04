@@ -1,5 +1,7 @@
 # Apple Music Watchdog
 
+[![Lint](https://github.com/obfdanso/apple-music-watchdog/actions/workflows/lint.yml/badge.svg)](https://github.com/obfdanso/apple-music-watchdog/actions/workflows/lint.yml)
+
 Keeps Apple Music for Windows playing when it goes quiet on a shaky internet connection.
 
 ## The problem
@@ -26,8 +28,8 @@ It works with any speakers or headphones (Bluetooth, USB or built-in), because i
 
 ## Quick start
 
-1. Download this project: click **Code → Download ZIP** on GitHub and extract it, or run
-   `git clone https://github.com/<your-username>/apple-music-watchdog.git`
+1. Download this project: [download the ZIP](https://github.com/obfdanso/apple-music-watchdog/archive/refs/heads/main.zip) and extract it, or run
+   `git clone https://github.com/obfdanso/apple-music-watchdog.git`
 2. Start playing something in Apple Music.
 3. Double-click **`watchdog.cmd`**.
 
@@ -65,7 +67,7 @@ Play a song and run `watchdog check`. You should see something like:
 02:30:54  status=Playing  level=0.2321
 ```
 
-If `level` stays at `0.0000` while you can clearly hear music, detection isn't working on your setup. Please [open an issue](../../issues) with the output.
+If `level` stays at `0.0000` while you can clearly hear music, detection isn't working on your setup. Please [open an issue](https://github.com/obfdanso/apple-music-watchdog/issues) with the output.
 
 ## The log
 
