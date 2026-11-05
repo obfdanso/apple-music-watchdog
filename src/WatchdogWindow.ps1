@@ -940,6 +940,13 @@ function Show-WatchdogWindow {
             Add-LogLine "Error: $($_.Exception.Message)"
             $_.Handled = $true
         })
+    # The tray menu is a WinForms menu, whose errors go to WinForms instead. Unhandled,
+    # WinForms shows its own error box, whose Quit button ends the watchdog without
+    # cleaning up (pressing play again, putting the volume back). Log them instead.
+    [System.Windows.Forms.Application]::add_ThreadException({
+            param($source, $info)
+            Add-LogLine "Error: $($info.Exception.Message)"
+        })
 
     # Title bar in the same colours as the window (Windows 11; ignored elsewhere).
     # Event handlers here are plain script blocks, not closures, so they can call
