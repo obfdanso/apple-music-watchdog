@@ -129,11 +129,6 @@ if (Test-Path $SettingsPath) {
     }
 }
 
-# Values given on the command line win over saved ones.
-if ($PSBoundParameters.ContainsKey('SilentSeconds')) { $Settings.SilentSeconds = $SilentSeconds }
-if ($PSBoundParameters.ContainsKey('CooldownSeconds')) { $Settings.CooldownSeconds = $CooldownSeconds }
-if ($PSBoundParameters.ContainsKey('AllowSleep')) { $Settings.KeepAwake = -not $AllowSleep }
-
 # Hand-edited values: a whole number in range, or the default if it isn't one.
 function ConvertTo-SettingNumber($Value, [int]$Minimum, [int]$Maximum, [int]$Default) {
     $number = 0
@@ -148,8 +143,8 @@ function ConvertTo-SettingSwitch($Value) {
     [bool]$Value
 }
 
-$Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 $SilentSeconds
-$Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 $CooldownSeconds
+$Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 12
+$Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 20
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
 foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic', 'RespectPause') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
@@ -159,10 +154,27 @@ $volume = 0.0
 if (-not [double]::TryParse([string]$Settings.RestoreVolume, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$volume) -or $volume -gt 1) { $volume = -1.0 }
 $Settings.RestoreVolume = $volume
 
+# Values given on the command line win over saved ones, for this run only. They
+# aren't saved unless you change them in the window.
+$CommandLine = @{}
+if ($PSBoundParameters.ContainsKey('SilentSeconds')) { $CommandLine.SilentSeconds = $SilentSeconds }
+if ($PSBoundParameters.ContainsKey('CooldownSeconds')) { $CommandLine.CooldownSeconds = $CooldownSeconds }
+if ($PSBoundParameters.ContainsKey('AllowSleep')) { $CommandLine.KeepAwake = -not $AllowSleep }
+$SavedValues = @{}
+foreach ($name in $CommandLine.Keys) {
+    $SavedValues[$name] = $Settings[$name]
+    $Settings[$name] = $CommandLine[$name]
+}
+
 function Save-WatchdogSetting {
     $dir = Split-Path $SettingsPath
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    $Settings | ConvertTo-Json | Set-Content -Path $SettingsPath -Encoding UTF8
+    $toSave = $Settings.Clone()
+    foreach ($name in $CommandLine.Keys) {
+        # Still the command-line value: keep what was saved before.
+        if ($toSave[$name] -eq $CommandLine[$name]) { $toSave[$name] = $SavedValues[$name] }
+    }
+    $toSave | ConvertTo-Json | Set-Content -Path $SettingsPath -Encoding UTF8
 }
 
 Add-Type -Path (Join-Path $PSScriptRoot 'AppAudio.cs')
