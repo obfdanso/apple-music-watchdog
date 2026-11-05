@@ -1201,6 +1201,7 @@ function Show-WatchdogWindow {
             # Faded out: put the volume back a moment after pausing, once it's quiet.
             $fadeTimer.Stop()
             $ui.RestoreAt = (Get-Date).AddSeconds(1.5)
+            $ui.PauseRetried = $false
         }
         Stop-Watching "Time is up. Stopped watching ($fixed)"
         $ui.EndedAt = Get-Date
@@ -1211,7 +1212,8 @@ function Show-WatchdogWindow {
             $State.FixSession = $null
             Stop-ConnectionCheck
             $session = Get-AppleMusicSession $State.Manager
-            if ($session -and $session.GetPlaybackInfo().PlaybackStatus -eq 'Playing') {
+            # Anything but already paused or stopped (it may be between songs, say).
+            if ($session -and $session.GetPlaybackInfo().PlaybackStatus -notin 'Paused', 'Stopped', 'Closed') {
                 [void](Wait-AsyncOperation ($session.TryPauseAsync()) ([bool]))
                 Add-LogLine 'Paused Apple Music'
             }
@@ -1694,7 +1696,18 @@ function Show-WatchdogWindow {
                     Start-Fade
                 }
                 if ($ui.Deadline -and $now -ge $ui.Deadline) { Stop-Session }
-                if ($ui.RestoreAt -and $now -ge $ui.RestoreAt) { Stop-Fade }
+                if ($ui.RestoreAt -and $now -ge $ui.RestoreAt) {
+                    if ($State.Status -eq 'Playing' -and -not $ui.PauseRetried) {
+                        # Still playing after the fade: try pausing once more before turning
+                        # the volume back up, rather than blasting the music at full volume.
+                        $ui.PauseRetried = $true
+                        $ui.RestoreAt = $now.AddSeconds(1.5)
+                        $session = Get-AppleMusicSession $State.Manager
+                        if ($session) { [void](Wait-AsyncOperation ($session.TryPauseAsync()) ([bool])) }
+                        Add-LogLine 'Apple Music was still playing after the timer. Pausing it again.'
+                    }
+                    else { Stop-Fade }
+                }
                 # No need to redraw while the window is minimised or hidden in the tray.
                 if ($window.IsVisible -and $window.WindowState -ne 'Minimized') { Update-Display } else { Update-Tray }
             }
