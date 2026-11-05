@@ -629,9 +629,8 @@ $WindowXaml = @'
             <TextBlock Style="{StaticResource PageTitle}" Text="Now Playing"/>
             <Border CornerRadius="16" MinHeight="262" Background="{{Card}}">
               <Grid x:Name="Hero">
-                <Border x:Name="HeroBlur" Margin="-80" Opacity="0.75" CacheMode="BitmapCache">
-                  <Border.Effect><BlurEffect Radius="70"/></Border.Effect>
-                </Border>
+                <!-- The artwork, blurred (see New-BlurredArtwork) -->
+                <Border x:Name="HeroBlur" Opacity="0.75"/>
                 <Border Background="{{HeroShade}}"/>
                 <Grid Margin="30">
                   <Grid.ColumnDefinitions>
@@ -1247,11 +1246,14 @@ function Show-WatchdogWindow {
             catch { Write-Verbose "Couldn't load the artwork: $($_.Exception.Message)" }
         }
         if ($image) {
-            foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.HeroBlur) {
+            foreach ($target in $ui.ArtSmall, $ui.ArtBig) {
                 $fill = New-Object System.Windows.Media.ImageBrush $image
                 $fill.Stretch = 'UniformToFill'
                 $target.Background = $fill
             }
+            $blurred = New-Object System.Windows.Media.ImageBrush (New-BlurredArtwork $image)
+            $blurred.Stretch = 'UniformToFill'
+            $ui.HeroBlur.Background = $blurred
             $ui.ArtSmallEmpty.Visibility = 'Collapsed'
             $ui.ArtBigEmpty.Visibility = 'Collapsed'
         }
@@ -1775,6 +1777,32 @@ function Read-Artwork($Reference) {
     $image.EndInit()
     $image.Freeze()
     $image
+}
+
+# The artwork, blurred, for the background of the Now Playing card. Drawn once per
+# song as a small picture that gets stretched to fit. A live blur effect looked the
+# same but was redrawn on every frame while scrolling, which made scrolling stutter.
+function New-BlurredArtwork($Image) {
+    $size = 200
+    $zoom = 1.3   # drawn larger than the picture, so the blur doesn't fade out at the edges
+    $art = New-Object System.Windows.Controls.Border
+    $art.Width = $art.Height = $size * $zoom
+    $fill = New-Object System.Windows.Media.ImageBrush $Image
+    $fill.Stretch = 'UniformToFill'
+    $art.Background = $fill
+    $blur = New-Object System.Windows.Media.Effects.BlurEffect
+    $blur.Radius = 12
+    $art.Effect = $blur
+    $frame = New-Object System.Windows.Controls.Canvas
+    [void]$frame.Children.Add($art)
+    [System.Windows.Controls.Canvas]::SetLeft($art, - $size * ($zoom - 1) / 2)
+    [System.Windows.Controls.Canvas]::SetTop($art, - $size * ($zoom - 1) / 2)
+    $frame.Measure((New-Object System.Windows.Size $size, $size))
+    $frame.Arrange((New-Object System.Windows.Rect 0, 0, $size, $size))
+    $bitmap = New-Object System.Windows.Media.Imaging.RenderTargetBitmap $size, $size, 96, 96, ([System.Windows.Media.PixelFormats]::Pbgra32)
+    $bitmap.Render($frame)
+    $bitmap.Freeze()
+    $bitmap
 }
 
 # The app icon: a white rounded tile with the watchdog symbol in black, like the
