@@ -1139,7 +1139,7 @@ function Show-WatchdogWindow {
                 $span = ($ui.Deadline - $ui.FadeStart).TotalSeconds
                 $done = if ($span -gt 0) { [Math]::Min(1.0, ((Get-Date) - $ui.FadeStart).TotalSeconds / $span) } else { 1.0 }
                 # Squared, so it sounds like an even fade rather than a sudden drop at the end.
-                [AppAudio]::SetVolume($AudioProcesses, [float]($State.FadeFrom * (1 - $done) * (1 - $done)))
+                [void][AppAudio]::SetVolume($AudioProcesses, [float]($State.FadeFrom * (1 - $done) * (1 - $done)))
             }
             catch {
                 Add-LogLine "Error while fading out: $($_.Exception.Message)"
@@ -1164,10 +1164,14 @@ function Show-WatchdogWindow {
         $fadeTimer.Stop()
         $ui.RestoreAt = $null
         if ($State.FadeFrom -lt 0) { return }
-        [AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom)
+        $restored = [AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom) -gt 0
         $State.FadeFrom = -1.0
-        $Settings.RestoreVolume = -1.0
-        Save-WatchdogSetting
+        # If Apple Music isn't open, the saved volume stays, and the watchdog puts it
+        # back once it is (see Invoke-WatchdogStep).
+        if ($restored) {
+            $Settings.RestoreVolume = -1.0
+            Save-WatchdogSetting
+        }
     }
 
     function Start-Watching {

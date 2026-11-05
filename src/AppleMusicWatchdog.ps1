@@ -376,11 +376,13 @@ function Invoke-WatchdogStep {
         $State.LastStatus = $State.Status
         $State.Level = [AppAudio]::GetPeak($AudioProcesses)
         if ($Settings.RestoreVolume -ge 0 -and $State.FadeFrom -lt 0 -and $State.Level -ge 0) {
-            # A fade-out was cut short last time (the PC shut down, say): put the volume back.
-            [AppAudio]::SetVolume($AudioProcesses, $Settings.RestoreVolume)
-            $Settings.RestoreVolume = -1.0
-            Save-WatchdogSetting
-            Add-LogLine 'Put the volume back after an unfinished fade-out'
+            # A fade-out was cut short (the PC shut down, say), or Apple Music was closed
+            # when it should have been put back: put the volume back now it's open.
+            if ([AppAudio]::SetVolume($AudioProcesses, $Settings.RestoreVolume) -gt 0) {
+                $Settings.RestoreVolume = -1.0
+                Save-WatchdogSetting
+                Add-LogLine 'Put the volume back after an unfinished fade-out'
+            }
         }
         [AppAudio]::SetKeepAwake($State.Active -and $playing -and $Settings.KeepAwake)
 
@@ -652,11 +654,13 @@ finally {
         catch { Write-Verbose "Couldn't open Apple Music again: $($_.Exception.Message)" }
     }
     if ($State.FadeFrom -ge 0) {
-        # Stopped while fading the music out: put the volume back.
+        # Stopped while fading the music out: put the volume back. If Apple Music isn't
+        # open, the saved volume stays, and is put back next time.
         try {
-            [AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom)
-            $Settings.RestoreVolume = -1.0
-            Save-WatchdogSetting
+            if ([AppAudio]::SetVolume($AudioProcesses, $State.FadeFrom) -gt 0) {
+                $Settings.RestoreVolume = -1.0
+                Save-WatchdogSetting
+            }
         }
         catch { Write-Verbose "Couldn't put the volume back: $($_.Exception.Message)" }
     }

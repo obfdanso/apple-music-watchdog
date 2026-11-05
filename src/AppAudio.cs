@@ -130,13 +130,23 @@ public static class AppAudio {
 
     // Sets the named processes' volume in the Windows volume mixer (0..1). Used to
     // fade the music out when the timer ends, and to put the volume back after.
-    public static void SetVolume(string[] processNames, float volume) {
+    // Returns how many audio sessions it set: 0 if none of the processes has one
+    // (Apple Music isn't open), so nothing was changed.
+    public static int SetVolume(string[] processNames, float volume) {
         Guid context = Guid.Empty;
         volume = Math.Max(0f, Math.Min(1f, volume));
+        int set = 0;
         foreach (object session in FindSessions(processNames)) {
-            ((ISimpleAudioVolume)session).SetMasterVolume(volume, ref context);
-            Release(session);
+            try {
+                ((ISimpleAudioVolume)session).SetMasterVolume(volume, ref context);
+                set++;
+            }
+            catch (Exception) {
+                // A session that ended in the meantime.
+            }
+            finally { Release(session); }
         }
+        return set;
     }
 
     // Reads the same level as GetPeak many times a second, cheaply: it holds on to
