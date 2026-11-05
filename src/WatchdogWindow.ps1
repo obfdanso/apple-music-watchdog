@@ -105,7 +105,7 @@ $WindowXaml = @'
 
     <Style x:Key="Card" TargetType="Border">
       <Setter Property="Background" Value="{{Card}}"/>
-      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="CornerRadius" Value="12"/>
     </Style>
 
     <Style x:Key="SettingCard" TargetType="Border" BasedOn="{StaticResource Card}">
@@ -127,8 +127,8 @@ $WindowXaml = @'
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
             <Grid Background="Transparent">
-              <Border x:Name="Hover" CornerRadius="5" Background="{{Hover}}" Opacity="0"/>
-              <Border x:Name="Picked" CornerRadius="5" Background="{{Selected}}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="10" Background="{{Hover}}" Opacity="0"/>
+              <Border x:Name="Picked" CornerRadius="10" Background="{{Selected}}" Opacity="0"/>
               <Border Padding="14,10">
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" FontFamily="{StaticResource Icons}"
@@ -279,7 +279,7 @@ $WindowXaml = @'
           <ControlTemplate TargetType="Button">
             <Grid x:Name="Root" Width="40" Height="36" Background="Transparent" RenderTransformOrigin="0.5,0.5">
               <Grid.RenderTransform><ScaleTransform/></Grid.RenderTransform>
-              <Border x:Name="Hover" CornerRadius="4" Background="{{Selected}}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="8" Background="{{Selected}}" Opacity="0"/>
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -328,7 +328,7 @@ $WindowXaml = @'
 
     <Style x:Key="Stepper" TargetType="Border">
       <Setter Property="Background" Value="{{Raised}}"/>
-      <Setter Property="CornerRadius" Value="5"/>
+      <Setter Property="CornerRadius" Value="10"/>
       <Setter Property="Padding" Value="2"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -356,8 +356,8 @@ $WindowXaml = @'
           <ControlTemplate TargetType="Button">
             <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
               <Grid.RenderTransform><ScaleTransform/></Grid.RenderTransform>
-              <Border CornerRadius="5" Background="{TemplateBinding Background}"/>
-              <Border x:Name="Hover" CornerRadius="5" Background="{{HoverOverlay}}" Opacity="0"/>
+              <Border CornerRadius="19" Background="{TemplateBinding Background}"/>
+              <Border x:Name="Hover" CornerRadius="19" Background="{{HoverOverlay}}" Opacity="0"/>
               <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -419,7 +419,7 @@ $WindowXaml = @'
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TextBox">
-            <Border CornerRadius="5" Background="{{Raised}}" Padding="10,7">
+            <Border CornerRadius="10" Background="{{Raised}}" Padding="12,8">
               <Grid>
                 <TextBlock x:Name="Placeholder" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
                            Foreground="{{Secondary}}" Margin="2,0" Visibility="Collapsed" IsHitTestVisible="False"/>
@@ -460,8 +460,8 @@ $WindowXaml = @'
               <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
                   <Grid Background="Transparent">
-                    <Border x:Name="Hover" CornerRadius="4" Background="{{Hover}}" Opacity="0"/>
-                    <Border x:Name="Picked" CornerRadius="4" Background="{{Selected}}" Opacity="0"/>
+                    <Border x:Name="Hover" CornerRadius="8" Background="{{Hover}}" Opacity="0"/>
+                    <Border x:Name="Picked" CornerRadius="8" Background="{{Selected}}" Opacity="0"/>
                     <Border x:Name="Marker" Width="3" Height="16" CornerRadius="1.5" Background="{{Accent}}" HorizontalAlignment="Left" Opacity="0"/>
                     <ContentPresenter Margin="14,7"/>
                   </Grid>
@@ -542,7 +542,7 @@ $WindowXaml = @'
     <Border Grid.Column="0" Background="{{Sidebar}}" BorderBrush="{{Line}}" BorderThickness="0,0,1,0">
       <DockPanel Margin="16,20,16,18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,26">
-          <Border Width="40" Height="40" CornerRadius="10" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
+          <Border Width="40" Height="40" CornerRadius="12" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
             <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource Icons}" FontSize="20" Foreground="{{LogoGlyph}}"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
@@ -586,14 +586,14 @@ $WindowXaml = @'
           <Button x:Name="PlayButton" Style="{StaticResource StepButton}" FontSize="19" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
           <Button x:Name="NextButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
         </StackPanel>
-        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="9" Background="{{Card}}"
+        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="14" Background="{{Card}}"
                 BorderBrush="{{Line}}" BorderThickness="1" Margin="12,0,16,0">
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="54"/>
               <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            <Border x:Name="ArtSmall" Grid.Column="0" CornerRadius="8,0,0,8" Background="{{ArtEmpty}}">
+            <Border x:Name="ArtSmall" Grid.Column="0" CornerRadius="13,0,0,13" Background="{{ArtEmpty}}">
               <TextBlock x:Name="ArtSmallEmpty" Text="&#xE8D6;" FontFamily="{StaticResource Icons}" FontSize="20"
                          Foreground="{{Secondary}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
@@ -627,7 +627,7 @@ $WindowXaml = @'
         <ScrollViewer x:Name="PageNow" VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Now Playing"/>
-            <Border CornerRadius="8" MinHeight="262" Background="{{Card}}">
+            <Border CornerRadius="16" MinHeight="262" Background="{{Card}}">
               <Grid x:Name="Hero">
                 <Border x:Name="HeroBlur" Margin="-80" Opacity="0.75" CacheMode="BitmapCache">
                   <Border.Effect><BlurEffect Radius="70"/></Border.Effect>
@@ -638,7 +638,7 @@ $WindowXaml = @'
                     <ColumnDefinition Width="202"/>
                     <ColumnDefinition Width="*"/>
                   </Grid.ColumnDefinitions>
-                  <Border x:Name="ArtBig" Width="202" Height="202" CornerRadius="6" Background="{{ArtEmpty}}" CacheMode="BitmapCache">
+                  <Border x:Name="ArtBig" Width="202" Height="202" CornerRadius="10" Background="{{ArtEmpty}}" CacheMode="BitmapCache">
                     <Border.Effect><DropShadowEffect BlurRadius="26" ShadowDepth="6" Opacity="0.45"/></Border.Effect>
                     <TextBlock x:Name="ArtBigEmpty" Text="&#xE8D6;" FontFamily="{StaticResource Icons}" FontSize="64"
                                Foreground="{{Secondary}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -687,7 +687,7 @@ $WindowXaml = @'
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="44" Height="44" CornerRadius="10" Background="{{Raised}}">
+                <Border Width="44" Height="44" CornerRadius="12" Background="{{Raised}}">
                   <TextBlock Text="&#xE90F;" FontFamily="{StaticResource Icons}" FontSize="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
@@ -695,7 +695,7 @@ $WindowXaml = @'
                   <TextBlock x:Name="LastFixLabel" Text="Last fix" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="LastFixText" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
-                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="12" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
+                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="14" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
                   <TextBlock x:Name="LastFixResult" FontSize="13"/>
                 </Border>
               </Grid>
@@ -707,7 +707,7 @@ $WindowXaml = @'
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="44" Height="44" CornerRadius="10" Background="{{Raised}}">
+                <Border Width="44" Height="44" CornerRadius="12" Background="{{Raised}}">
                   <TextBlock x:Name="RouteIcon" Text="&#xE7F5;" FontFamily="{StaticResource Icons}" FontSize="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
@@ -715,7 +715,7 @@ $WindowXaml = @'
                   <TextBlock x:Name="RouteLabel" Text="Playing through" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="RouteName" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
-                <Border Grid.Column="2" CornerRadius="12" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
+                <Border Grid.Column="2" CornerRadius="14" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
                   <TextBlock x:Name="RouteKind" FontSize="13"/>
                 </Border>
               </Grid>
@@ -1600,7 +1600,7 @@ function Show-WatchdogWindow {
         })
 
     $ui.Hero.Add_SizeChanged({
-            $ui.Hero.Clip = New-Object System.Windows.Media.RectangleGeometry ((New-Object System.Windows.Rect 0, 0, $ui.Hero.ActualWidth, $ui.Hero.ActualHeight), 8, 8)
+            $ui.Hero.Clip = New-Object System.Windows.Media.RectangleGeometry ((New-Object System.Windows.Rect 0, 0, $ui.Hero.ActualWidth, $ui.Hero.ActualHeight), 16, 16)
         })
 
     # The tray icon, shown while "Keep running in the tray when closed" is on.
