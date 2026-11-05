@@ -19,8 +19,8 @@ Add-Type -Path (Join-Path $PSScriptRoot 'Waveform.cs') -ReferencedAssemblies Pre
 Add-Type -Path (Join-Path $PSScriptRoot 'SmoothScroll.cs') -ReferencedAssemblies PresentationFramework, PresentationCore, WindowsBase, System.Xaml
 
 $WindowTitle = 'Apple Music Watchdog'
-# The window's identity on the taskbar, shared with its shortcuts.
-$AppId = 'obfdanso.AppleMusicWatchdog'
+# The window's identity on the taskbar ($AppId) comes from AppleMusicWatchdog.ps1 and
+# is shared with its shortcuts.
 $IconPath = Join-Path $env:LOCALAPPDATA 'AppleMusicWatchdog\watchdog.ico'
 $ShortcutName = 'Apple Music Watchdog.lnk'
 
@@ -778,6 +778,16 @@ $WindowXaml = @'
                   <TextBlock Style="{StaticResource RowHint}" Text="The watchdog never presses play on music that's paused. When this is off, music that stopped while the internet was down starts again once it's back, even if you paused it yourself."/>
                 </StackPanel>
                 <CheckBox x:Name="RespectPause" Grid.Column="1" Style="{StaticResource Switch}"/>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Notifications"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="A silent Windows notification when the internet drops out, when it took more than pausing and playing to get the sound back, or when nothing worked."/>
+                </StackPanel>
+                <CheckBox x:Name="Notify" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
             </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Timer" Margin="2,22,0,10"/>
@@ -1558,6 +1568,7 @@ function Show-WatchdogWindow {
     $ui.CloseToTray.IsChecked = $Settings.CloseToTray
     $ui.RestartAppleMusic.IsChecked = $Settings.RestartAppleMusic
     $ui.RespectPause.IsChecked = $Settings.RespectPause
+    $ui.Notify.IsChecked = $Settings.Notify
 
     $ui.SilentDown.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $false $silentSteps; Save-WatchdogSetting; Update-Display })
     $ui.SilentUp.Add_Click({ $Settings.SilentSeconds = Get-StepValue $Settings.SilentSeconds 3 600 $true $silentSteps; Save-WatchdogSetting; Update-Display })
@@ -1603,6 +1614,8 @@ function Show-WatchdogWindow {
     $ui.RestartAppleMusic.Add_Checked($onRestartAppleMusic); $ui.RestartAppleMusic.Add_Unchecked($onRestartAppleMusic)
     $onRespectPause = { $Settings.RespectPause = [bool]$ui.RespectPause.IsChecked; Save-WatchdogSetting; Update-Display }
     $ui.RespectPause.Add_Checked($onRespectPause); $ui.RespectPause.Add_Unchecked($onRespectPause)
+    $onNotify = { $Settings.Notify = [bool]$ui.Notify.IsChecked; Save-WatchdogSetting }
+    $ui.Notify.Add_Checked($onNotify); $ui.Notify.Add_Unchecked($onNotify)
     $ui.HoursDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 60) })
     $ui.HoursUp.Add_Click({ Set-TimerLength ((Get-TimerLength) + 60) })
     $ui.MinutesDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 5) })
