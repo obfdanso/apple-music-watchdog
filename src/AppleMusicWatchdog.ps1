@@ -220,6 +220,7 @@ $State = @{
     FailedFixes   = 0                      # fixes in a row that didn't bring the sound back
     AppId         = ''                     # Apple Music's app ID, to open it again after a restart
     RestartedAt   = [datetime]::MinValue   # when the watchdog last restarted Apple Music
+    RestartTried  = $false                 # whether it has restarted Apple Music since the sound last came back
     BackAt        = $null                  # when Apple Music came back after a restart
     Probe         = $null                  # the connection check under way, if any
     ProbeTask     = $null
@@ -280,7 +281,11 @@ function Stop-ConnectionCheck {
 
 # Which fix to try next, given how many in a row haven't worked.
 function Get-FixKind($Session) {
-    if ($State.FailedFixes -eq $FixSteps.Count -and $Settings.RestartAppleMusic -and ((Get-Date) - $State.RestartedAt).TotalMinutes -ge 30) {
+    # Once the other fixes have all failed. If the last restart was under half an hour
+    # ago, it waits, and restarts on a later attempt once the half hour is up.
+    if ($State.FailedFixes -ge $FixSteps.Count -and -not $State.RestartTried -and $Settings.RestartAppleMusic -and
+        ((Get-Date) - $State.RestartedAt).TotalMinutes -ge 30) {
+        $State.RestartTried = $true
         return 'RestartApp'
     }
     $kind = if ($State.FailedFixes -lt $FixSteps.Count) { $FixSteps[$State.FailedFixes] } else { 'PausePlay' }
@@ -347,7 +352,7 @@ function Complete-Fix([datetime]$Now, [bool]$Worked, [switch]$Abandoned) {
     $State.LastFixWorked = $Worked
     $State.LastFixCut = [bool]$Abandoned
     $State.LastFixKind = $State.FixKind
-    if ($Worked) { $State.FailedFixes = 0 } elseif (-not $Abandoned) { $State.FailedFixes++ }
+    if ($Worked) { $State.FailedFixes = 0; $State.RestartTried = $false } elseif (-not $Abandoned) { $State.FailedFixes++ }
     $State.Phase = 'Watching'
     $State.FixKind = ''
     $State.FixSession = $null
@@ -517,7 +522,7 @@ function Invoke-WatchdogStep {
                     $State.LastFixWorked = $true
                     Add-LogLine ('Sound came back {0:N0}s after the fix' -f ($now - $State.LastFixAt).TotalSeconds)
                 }
-                if ($audible) { $State.FailedFixes = 0 }
+                if ($audible) { $State.FailedFixes = 0; $State.RestartTried = $false }
 
                 if ($State.Active -and $playing -and $State.Level -lt $Threshold) {
                     if (-not $State.SilentSince) { $State.SilentSince = $now }
