@@ -16,6 +16,7 @@ Add-Type -Namespace AppleMusicWatchdog -Name Dwm -MemberDefinition @'
 Add-Type -Path (Join-Path $PSScriptRoot 'WindowsShell.cs')
 . (Join-Path $PSScriptRoot 'Autostart.ps1')
 Add-Type -Path (Join-Path $PSScriptRoot 'Waveform.cs') -ReferencedAssemblies PresentationFramework, PresentationCore, WindowsBase, System.Xaml
+Add-Type -Path (Join-Path $PSScriptRoot 'SmoothScroll.cs') -ReferencedAssemblies PresentationFramework, PresentationCore, WindowsBase, System.Xaml
 
 $WindowTitle = 'Apple Music Watchdog'
 # The window's identity on the taskbar, shared with its shortcuts.
@@ -1523,6 +1524,7 @@ function Show-WatchdogWindow {
 
     # Navigation
     $pages = @{ NavNow = $ui.PageNow; NavSettings = $ui.PageSettings }
+    foreach ($page in $pages.Values) { [SmoothScroll]::Enable($page) }
     foreach ($nav in $pages.Keys) {
         $ui[$nav].Add_Checked({
                 param($source)
