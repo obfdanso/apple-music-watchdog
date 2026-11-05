@@ -18,12 +18,22 @@
 - Previous, play/pause and next buttons in the window's top bar, and the current song with play controls in the tray menu.
 - **Start when I sign in** switch in Settings, which does the same as `watchdog install`.
 - A **Last fix** card on Now Playing: what the last fix did, during which song, and whether the sound came back.
+- Silent Windows notifications when the internet drops out, when a fix took more than pausing and playing, or when nothing worked. They can be turned off in Settings.
+- Smooth scrolling that moves further per wheel notch, and rounder cards, buttons and artwork.
+- A hint under **System font** when no font has been picked yet, or the picked one isn't installed any more.
 - If the watchdog stops halfway through a fix, it presses play again instead of leaving the music paused.
 - A bad value in the settings file no longer stops the watchdog from starting.
 - An error in a window button or switch is logged instead of closing the watchdog.
 - `watchdog stop` and `watchdog status` no longer mistake other PowerShell commands for the watchdog.
 - The artwork shows up even when Apple Music sends it a moment after the song title.
 - The song position on the progress bar is no longer rounded to whole seconds.
+- Now Playing no longer stutters while scrolling.
+- An error in the middle of a fix no longer leaves Apple Music paused, or closed during a restart.
+- Restarting Apple Music is no longer skipped for the rest of a silence when the last restart was under half an hour before.
+- One audio device that can't be read (such as Bluetooth headphones disconnecting) no longer breaks the sound check for the others.
+- The volume is put back even if Apple Music was closed when a fade ended, and isn't turned back up if Apple Music didn't pause.
+- An error in the tray menu is logged instead of showing an error box.
+- Settings given on the command line are no longer saved as your settings.
 
 ## 0.1.0 - 2026-11-04
 
