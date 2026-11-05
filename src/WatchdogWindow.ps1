@@ -888,6 +888,7 @@ $WindowXaml = @'
                 </Grid>
                 <TextBlock x:Name="AnthropicNote" Style="{StaticResource RowHint}" Margin="0,10,0,0" Visibility="Collapsed"
                            Text="Anthropic Sans isn't installed on this PC. Install it, or put its font files in the fonts folder next to watchdog.cmd, then open the window again."/>
+                <TextBlock x:Name="SystemFontNote" Style="{StaticResource RowHint}" Margin="0,10,0,0" Visibility="Collapsed"/>
                 <StackPanel x:Name="FontPicker" Margin="0,14,0,2" Visibility="Collapsed">
                   <TextBox x:Name="FontSearch" Style="{StaticResource SearchBox}" Tag="Search your fonts"/>
                   <ListBox x:Name="FontList" Style="{StaticResource FontList}" Height="220" Margin="0,8,0,0"/>
@@ -1449,6 +1450,13 @@ function Show-WatchdogWindow {
             Set-AnimatedBrush $chip 'Foreground' $(if ($on) { '#FFFFFF' } else { $colors.Text })
         }
         $ui.FontPicker.Visibility = if ($Settings.Font -eq 'System') { 'Visible' } else { 'Collapsed' }
+        # The default font is used until a font from the list is picked, or if the one
+        # picked has since been uninstalled.
+        $missing = $Settings.Font -eq 'System' -and -not ($Settings.SystemFont -and $fonts.Contains($Settings.SystemFont))
+        $ui.SystemFontNote.Visibility = if ($missing) { 'Visible' } else { 'Collapsed' }
+        if ($missing) {
+            Set-Text $ui.SystemFontNote $(if ($Settings.SystemFont) { '{0} isn''t installed any more, so the default font is used. Pick another one below.' -f $Settings.SystemFont } else { 'Pick a font below. Until you do, the default font is used.' })
+        }
 
         # Timer
         $minutes = Get-TimerLength
