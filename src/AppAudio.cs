@@ -213,10 +213,17 @@ public static class AppAudio {
                                 keep = true;
                             }
                         }
+                        catch (Exception) {
+                            // A session that ended while being read: skip it.
+                        }
                         finally {
                             if (!keep) Release(session);
                         }
                     }
+                }
+                catch (Exception) {
+                    // A device that can't be read right now (say, Bluetooth headphones
+                    // disconnecting): skip it rather than fail for every device.
                 }
                 finally {
                     Release(sessions);
@@ -280,9 +287,16 @@ public static class AppAudio {
                             session.GetState(out state);
                             inUse = match && state == SessionStateActive;
                         }
+                        catch (Exception) {
+                            // A session that ended while being read: skip it.
+                        }
                         finally { Release(session); }
                     }
                     if (inUse) found.Add(Describe(device, true));
+                }
+                catch (Exception) {
+                    // A device that can't be read right now (say, Bluetooth headphones
+                    // disconnecting): skip it rather than fail for every device.
                 }
                 finally {
                     Release(sessions);
