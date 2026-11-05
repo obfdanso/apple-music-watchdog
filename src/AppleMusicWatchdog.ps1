@@ -112,6 +112,7 @@ $Settings = @{
     CloseToTray      = $false
     RestartAppleMusic = $true              # as a last resort, when nothing else brings the sound back
     RespectPause     = $false              # never press play on music that's paused
+    Notify           = $true               # Windows notifications when something goes wrong
     Font             = 'Default'           # 'Default', 'System' (SystemFont below) or 'Anthropic'
     SystemFont       = ''
     RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
@@ -147,7 +148,7 @@ $Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 
 $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 20
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
-foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic', 'RespectPause') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
+foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic', 'RespectPause', 'Notify') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
 if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
 $volume = 0.0
@@ -262,6 +263,26 @@ function Add-LogLine([string]$Message) {
     Write-Verbose $line
 }
 
+# The watchdog's identity in Windows: the taskbar and notifications use it. The
+# window's Start menu shortcut carries it too, which notifications need.
+$AppId = 'obfdanso.AppleMusicWatchdog'
+
+# A silent Windows notification (so it doesn't talk over the music), if they're
+# switched on. Does nothing if Windows won't show it, for example before the window
+# has been opened once to add the Start menu shortcut.
+function Show-WatchdogNotification([string]$Title, [string]$Text) {
+    if (-not $Settings.Notify) { return }
+    try {
+        [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+        [void][Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+        $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+        $xml.LoadXml(('<toast><visual><binding template="ToastGeneric"><text>{0}</text><text>{1}</text></binding></visual><audio silent="true"/></toast>' -f
+                [Security.SecurityElement]::Escape($Title), [Security.SecurityElement]::Escape($Text)))
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($AppId).Show((New-Object Windows.UI.Notifications.ToastNotification $xml))
+    }
+    catch { Write-Verbose "Couldn't show a notification: $($_.Exception.Message)" }
+}
+
 # Starts checking, in the background, whether Apple Music's servers can be reached.
 # Pausing and playing can't help while they can't.
 function Start-ConnectionCheck {
@@ -365,6 +386,19 @@ function Complete-Fix([datetime]$Now, [bool]$Worked, [switch]$Abandoned) {
     $State.LastFixCut = [bool]$Abandoned
     $State.LastFixKind = $State.FixKind
     if ($Worked) { $State.FailedFixes = 0; $State.RestartTried = $false } elseif (-not $Abandoned) { $State.FailedFixes++ }
+    $song = if ($State.LastFixTitle) { " ($($State.LastFixTitle))" } else { '' }
+    if ($Worked -and $State.FixKind -ne 'PausePlay') {
+        $did = switch ($State.FixKind) {
+            'RestartSong' { 'Restarted the song' }
+            'NextSong' { 'Skipped to the next song' }
+            'RestartApp' { 'Restarted Apple Music' }
+            default { 'Pressed play after the internet came back' }
+        }
+        Show-WatchdogNotification 'The sound is back' "$did$song."
+    }
+    elseif (-not $Worked -and -not $Abandoned -and $State.FailedFixes -eq $FixSteps.Count + 1) {
+        Show-WatchdogNotification "Couldn't get the sound back" ("Nothing the watchdog tried has worked{0}. It will keep trying about every {1} seconds." -f $song, [Math]::Max($Settings.CooldownSeconds, $Settings.SilentSeconds))
+    }
     $State.Phase = 'Watching'
     $State.FixKind = ''
     $State.FixSession = $null
@@ -451,6 +485,7 @@ function Invoke-WatchdogStep {
                 }
                 elseif ($online -eq $false) {
                     Add-LogLine "Silent, and Apple Music can't be reached. Waiting for the connection to come back."
+                    Show-WatchdogNotification "Apple Music can't connect" 'No sound, and the internet seems to be down. The watchdog will fix the sound once it''s back.'
                     $State.Phase = 'Offline'
                     $State.OfflineSince = $now
                     $State.ProbeAt = $now.AddSeconds(5)
