@@ -543,6 +543,16 @@ function Invoke-WatchdogStep {
         # The media manager can go stale if Apple Music restarts; get a fresh one.
         try { $State.Manager = Get-MediaManager } catch { Write-Verbose 'Could not refresh media manager.' }
         $State.SilentSince = $null
+        if ($State.Phase -in 'Restarting', 'Launching' -and ((Get-Date) - $State.RestartedAt).TotalSeconds -lt 90) {
+            # Restarting Apple Music, which is exactly when errors like this happen. Carry
+            # on, or it would be left closed (or open but not playing).
+            return
+        }
+        if ($State.Phase -eq 'Paused' -and $State.FixSession) {
+            # Paused for a fix: press play before giving up on it, so the music isn't left paused.
+            try { [void](Wait-AsyncOperation ($State.FixSession.TryPlayAsync()) ([bool])) }
+            catch { Write-Verbose "Couldn't press play again: $($_.Exception.Message)" }
+        }
         $State.Phase = 'Watching'
         $State.FixKind = ''
         $State.FixSession = $null
@@ -627,6 +637,14 @@ finally {
             Add-LogLine 'Pressed play again before stopping'
         }
         catch { Write-Verbose "Couldn't press play again: $($_.Exception.Message)" }
+    }
+    if ($State.Phase -eq 'Restarting' -and $State.AppId) {
+        # Stopped after closing Apple Music for a restart but before opening it again.
+        try {
+            Start-Process -FilePath 'explorer.exe' -ArgumentList "shell:AppsFolder\$($State.AppId)"
+            Add-LogLine 'Opened Apple Music again before stopping'
+        }
+        catch { Write-Verbose "Couldn't open Apple Music again: $($_.Exception.Message)" }
     }
     if ($State.FadeFrom -ge 0) {
         # Stopped while fading the music out: put the volume back.
