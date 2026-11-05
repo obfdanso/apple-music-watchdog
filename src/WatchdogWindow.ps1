@@ -1190,6 +1190,11 @@ function Show-WatchdogWindow {
         if (-not $ui.RestoreAt) { Stop-Fade }
         $State.Active = $false
         $State.SilentSince = $null
+        # A connection check or a wait for the internet is for a fix that won't happen now.
+        if ($State.Phase -in 'Checking', 'Offline') {
+            Stop-ConnectionCheck
+            $State.Phase = 'Watching'
+        }
         $ui.Deadline = $null
         [AppAudio]::SetKeepAwake($false)
         Add-LogLine $Reason
@@ -1346,7 +1351,8 @@ function Show-WatchdogWindow {
         }
         elseif ($State.Phase -eq 'Checking') {
             $dot = $colors.Amber
-            'No sound for {0} sec. Checking the internet connection...' -f [int]($now - $State.SilentSince).TotalSeconds
+            if ($State.SilentSince) { 'No sound for {0} sec. Checking the internet connection...' -f [int]($now - $State.SilentSince).TotalSeconds }
+            else { 'No sound. Checking the internet connection...' }
         }
         elseif ($State.Phase -ne 'Watching') {
             $dot = $colors.Accent
