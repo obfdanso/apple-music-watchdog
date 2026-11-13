@@ -10,10 +10,10 @@ When your connection drops for a moment, the Apple Music app on Windows can get 
 
 ## What this does
 
-A small script keeps an eye on Apple Music, either in a window or quietly in the background. If the app says it's playing but no sound has come out of it for 12 seconds in a row, the script pauses and resumes playback for you, the same fix you'd do by hand.
+A small script keeps an eye on Apple Music, either in a window or quietly in the background. If the app says it's playing but no sound has come out of it for 4 seconds in a row, the script pauses and resumes playback for you, the same fix you'd do by hand.
 
 - It only touches Apple Music. Other apps playing or paused in the background are left alone.
-- The gap between songs and quiet intros are shorter than 12 seconds, so they don't set it off.
+- The gap between songs is shorter than 4 seconds, so it doesn't set it off. A song that starts with a few seconds of silence might, which does no harm: the music just pauses and plays.
 - If pausing and playing twice doesn't bring the sound back, it restarts the song, then skips to the next one. As a last resort it closes Apple Music, opens it again and presses play (at most once every half hour, and you can turn that off).
 - Before each fix it checks that Apple Music's servers can be reached. If the internet is down, it waits for it to come back instead of pausing and playing over and over, then fixes the sound straight away. Between attempts it waits at least 20 seconds.
 - While Apple Music is playing, it stops the PC from going to sleep. Otherwise sleep works as normal.
@@ -49,7 +49,7 @@ watchdog install
 
 The window is styled after the Apple Music app and follows your Windows light or dark mode. Along the top you'll see whether it's watching, previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are, and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
 
-- **Now Playing:** the song and artwork, a live waveform of the sound coming out of Apple Music, and what the watchdog is doing about it, such as "No sound for 5 sec. Pausing and playing at 12 sec." or "Waiting for the internet to come back". Below that, how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
+- **Now Playing:** the song and artwork, a live waveform of the sound coming out of Apple Music, and what the watchdog is doing about it, such as "No sound for 2 sec. Pausing and playing at 4 sec." or "Waiting for the internet to come back". Below that, how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
 - **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the window's font, whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
 
 For the **timer**, turn on **Stop after a set time** in Settings and pick a duration, or tap one of the presets (15 minutes to 4 hours). The countdown starts when you press **Start Watching**. When the time is up it stops watching and, unless you turn that off, pauses Apple Music. With **Fade out first** on, it turns Apple Music down slowly over the last 30 seconds before pausing, then puts the volume back.
@@ -100,7 +100,7 @@ If `level` stays at `0.0000` while you can clearly hear music, detection isn't w
 Every fix is written to `%LOCALAPPDATA%\AppleMusicWatchdog\watchdog.log`:
 
 ```
-2026-11-04 03:12:40  Silent for 12s while 'Playing' ('Some Song'). Pausing and resuming (fix #1).
+2026-11-04 03:12:40  Silent for 4s while 'Playing' ('Some Song'). Pausing and resuming (fix #1).
 2026-11-04 03:12:45  After resume: level=0.3821
 2026-11-04 04:20:02  Silent, and Apple Music can't be reached. Waiting for the connection to come back.
 2026-11-04 04:21:37  The connection is back after 95s
@@ -121,7 +121,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\src\AppleMusicWatchdog.ps1 -Silen
 
 | Setting            | Default | Meaning                                                           |
 | ------------------ | ------- | ----------------------------------------------------------------- |
-| `-SilentSeconds`   | 12      | Seconds of silence while "Playing" before it steps in             |
+| `-SilentSeconds`   | 4       | Seconds of silence while "Playing" before it steps in             |
 | `-CooldownSeconds` | 20      | Minimum seconds between fixes                                     |
 | `-Threshold`       | 0.0005  | Sound level (0 to 1) that counts as silence                       |
 | `-AllowSleep`      | off     | Let the PC sleep even while music is playing                      |
