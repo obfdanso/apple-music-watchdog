@@ -24,15 +24,21 @@ public class Waveform : FrameworkElement {
         this.readLevel = readLevel;
         levels = new double[count];
         fills = new Brush[count];
-        for (int i = 0; i < count; i++) {
-            var brush = fill.Clone();
-            brush.Opacity = 0.3 + 0.7 * i / (count - 1);   // older bars fade out
-            brush.Freeze();
-            fills[i] = brush;
-        }
+        SetFill(fill);
         Width = count * (BarWidth + Gap) - Gap;
         timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(60) };
         timer.Tick += delegate { Step(); };
+    }
+
+    // The bars' colour, for when the window switches between light and dark.
+    public void SetFill(Brush fill) {
+        for (int i = 0; i < fills.Length; i++) {
+            var brush = fill.CloneCurrentValue();
+            brush.Opacity = 0.3 + 0.7 * i / (fills.Length - 1);   // older bars fade out
+            brush.Freeze();
+            fills[i] = brush;
+        }
+        InvalidateVisual();
     }
 
     public void Start() { timer.Start(); }
