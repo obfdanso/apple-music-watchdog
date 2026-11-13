@@ -1082,7 +1082,7 @@ function Show-WatchdogWindow {
             if ($other -ne $Page) { $other.Visibility = 'Collapsed' }
         }
         $Page.Visibility = 'Visible'
-        Update-PageColors
+        Update-PageFill
         $shift = New-Object System.Windows.Media.TranslateTransform 0, 16
         $Page.RenderTransform = $shift
         Start-Animation $Page ([System.Windows.UIElement]::OpacityProperty) 1 260 0
@@ -1325,7 +1325,7 @@ function Show-WatchdogWindow {
     $ui.Content.Background = $pageFill
     $ui.ArtColors = $null
 
-    function Update-PageColors {
+    function Update-PageFill {
         $plain = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
         $targets = if ($ui.ArtColors -and $ui.PageNow.Visibility -eq 'Visible') {
             ConvertTo-PageColor $ui.ArtColors[0] $ui.Dark
@@ -1364,7 +1364,7 @@ function Show-WatchdogWindow {
             $ui.HeroBlur.Background = $blurred
             $ui.ArtSmallEmpty.Visibility = 'Collapsed'
             $ui.ArtBigEmpty.Visibility = 'Collapsed'
-            $ui.ArtColors = try { Get-ArtworkColors $image } catch { $null }
+            $ui.ArtColors = try { Get-ArtworkPalette $image } catch { $null }
         }
         else {
             $ui.ArtSmall.Background = $brush.ArtEmpty
@@ -1374,7 +1374,7 @@ function Show-WatchdogWindow {
             $ui.ArtBigEmpty.Visibility = 'Visible'
             $ui.ArtColors = $null
         }
-        Update-PageColors
+        Update-PageFill
         foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.HeroTitle, $ui.HeroArtist, $ui.LcdTitle, $ui.LcdArtist) {
             Start-Animation $target ([System.Windows.UIElement]::OpacityProperty) 1 400 0
         }
@@ -1631,7 +1631,7 @@ function Show-WatchdogWindow {
         $Settings.Theme = $Choice
         Save-WatchdogSetting
         Set-Palette (Test-UseDark)
-        Update-PageColors
+        Update-PageFill
         Update-Display
     }
     $ui.ThemeSystem.Add_Click({ Set-ThemeChoice 'System' })
@@ -1817,7 +1817,7 @@ function Show-WatchdogWindow {
                 $ui.ThemeCheck = 1 + $ui.ThemeCheck
                 if ($ui.ThemeCheck % 6 -eq 0 -and $Settings.Theme -eq 'System' -and (Test-DarkTheme) -ne $ui.Dark) {
                     Set-Palette (Test-DarkTheme)
-                    Update-PageColors
+                    Update-PageFill
                 }
                 Invoke-WatchdogStep
                 $now = Get-Date
@@ -1913,7 +1913,7 @@ function Get-FontChoice {
 # summed up by its grey background, but a black-and-white cover still gives greys.
 # Near-black or near-white only leads if there's no real colour in a good share of
 # the cover, so a cover that's mostly shadow still gets its colour.
-function Get-ArtworkColors($Image) {
+function Get-ArtworkPalette($Image) {
     $scale = New-Object System.Windows.Media.ScaleTransform (32.0 / $Image.PixelWidth), (32.0 / $Image.PixelHeight)
     $small = New-Object System.Windows.Media.Imaging.TransformedBitmap $Image, $scale
     $pixels = New-Object System.Windows.Media.Imaging.FormatConvertedBitmap $small, ([System.Windows.Media.PixelFormats]::Bgra32), $null, 0
