@@ -113,7 +113,7 @@ $Settings = @{
     RestartAppleMusic = $true              # as a last resort, when nothing else brings the sound back
     RespectPause     = $false              # never press play on music that's paused
     Notify           = $true               # Windows notifications when something goes wrong
-    Font             = 'Default'           # 'Default', 'System' (SystemFont below) or 'Anthropic'
+    Font             = 'Default'           # 'Default' or 'System' (SystemFont below)
     SystemFont       = ''
     RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
 }
@@ -149,7 +149,7 @@ $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
 foreach ($name in 'KeepAwake', 'StopAfterEnabled', 'PauseWhenDone', 'FadeOut', 'CloseToTray', 'RestartAppleMusic', 'RespectPause', 'Notify') { $Settings[$name] = ConvertTo-SettingSwitch $Settings[$name] }
-if ($Settings.Font -notin 'Default', 'System', 'Anthropic') { $Settings.Font = 'Default' }
+if ($Settings.Font -notin 'Default', 'System') { $Settings.Font = 'Default' }
 $Settings.SystemFont = [string]$Settings.SystemFont
 $volume = 0.0
 if (-not [double]::TryParse([string]$Settings.RestoreVolume, [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$volume) -or $volume -gt 1) { $volume = -1.0 }

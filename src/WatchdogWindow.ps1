@@ -882,12 +882,9 @@ $WindowXaml = @'
                   </StackPanel>
                   <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="FontDefault" Style="{StaticResource Chip}" Content="Default"/>
-                    <Button x:Name="FontSystem" Style="{StaticResource Chip}" Content="System font"/>
-                    <Button x:Name="FontAnthropic" Style="{StaticResource Chip}" Content="Anthropic Sans" Margin="0"/>
+                    <Button x:Name="FontSystem" Style="{StaticResource Chip}" Content="System font" Margin="0"/>
                   </StackPanel>
                 </Grid>
-                <TextBlock x:Name="AnthropicNote" Style="{StaticResource RowHint}" Margin="0,10,0,0" Visibility="Collapsed"
-                           Text="Anthropic Sans isn't installed on this PC. Install it, or put its font files in the fonts folder next to watchdog.cmd, then open the window again."/>
                 <TextBlock x:Name="SystemFontNote" Style="{StaticResource RowHint}" Margin="0,10,0,0" Visibility="Collapsed"/>
                 <StackPanel x:Name="FontPicker" Margin="0,14,0,2" Visibility="Collapsed">
                   <TextBox x:Name="FontSearch" Style="{StaticResource SearchBox}" Tag="Search your fonts"/>
@@ -1443,7 +1440,7 @@ function Show-WatchdogWindow {
         $ui.CooldownUp.IsEnabled = $Settings.CooldownSeconds -lt 3600
 
         # Font
-        foreach ($choice in 'Default', 'System', 'Anthropic') {
+        foreach ($choice in 'Default', 'System') {
             $chip = $ui["Font$choice"]
             $on = $Settings.Font -eq $choice
             Set-AnimatedBrush $chip 'Background' $(if ($on) { $colors.Accent } else { $colors.Raised })
@@ -1494,20 +1491,14 @@ function Show-WatchdogWindow {
         }
     }
 
-    # Fonts: the default (Segoe UI Variable), one of the user's fonts, or Anthropic Sans.
+    # Fonts: the default (Segoe UI Variable) or one of the user's fonts.
     $fonts = Get-FontChoice
-    $anthropic = @($fonts.Keys | Where-Object { $_ -eq 'Anthropic Sans' }) + @($fonts.Keys | Where-Object { $_ -like 'Anthropic Sans*' }) | Select-Object -First 1
-    $ui.FontAnthropic.IsEnabled = [bool]$anthropic
-    $ui.AnthropicNote.Visibility = if ($anthropic) { 'Collapsed' } else { 'Visible' }
 
     function Set-WindowFont {
         $body = [System.Windows.Media.FontFamily]::new('Segoe UI Variable Text, Segoe UI')
         $display = [System.Windows.Media.FontFamily]::new('Segoe UI Variable Display, Segoe UI')
         if ($Settings.Font -eq 'System' -and $Settings.SystemFont -and $fonts.Contains($Settings.SystemFont)) {
             $body = $display = $fonts[$Settings.SystemFont]
-        }
-        elseif ($Settings.Font -eq 'Anthropic' -and $anthropic) {
-            $body = $display = $fonts[$anthropic]
         }
         $window.FontFamily = $body
         # Unwrapped: WPF rejects PowerShell's wrapper object here.
@@ -1543,7 +1534,6 @@ function Show-WatchdogWindow {
 
     $ui.FontDefault.Add_Click({ Set-FontChoice 'Default' })
     $ui.FontSystem.Add_Click({ Set-FontChoice 'System' })
-    $ui.FontAnthropic.Add_Click({ Set-FontChoice 'Anthropic' })
     $ui.FontList.Add_SelectionChanged({
             if (-not $ui.FontList.SelectedItem) { return }
             $Settings.SystemFont = [string]$ui.FontList.SelectedItem.Tag
@@ -1785,8 +1775,7 @@ function Show-WatchdogWindow {
 
 # The fonts the window can use, by name: everything installed for all users, fonts
 # installed just for this user, and any font files in the project's fonts folder
-# (which is how Anthropic Sans can be used without installing it). Symbol and icon
-# fonts are left out.
+# (so a font can be used without installing it). Symbol and icon fonts are left out.
 function Get-FontChoice {
     $found = @{}
     foreach ($family in [System.Windows.Media.Fonts]::SystemFontFamilies) { $found[$family.Source] = $family }
