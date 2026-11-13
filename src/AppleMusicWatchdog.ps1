@@ -19,7 +19,8 @@
 
 .PARAMETER SilentSeconds
     How long Apple Music must be "Playing" but silent before the watchdog steps
-    in. Keep this above the gap between songs and the length of quiet intros.
+    in. The gap between songs is shorter than the default. A song that starts
+    with a few seconds of silence may set it off, which does no harm.
 
 .PARAMETER CooldownSeconds
     Minimum wait after a fix before trying again, so a long outage doesn't
@@ -57,7 +58,7 @@
 [CmdletBinding()]
 param(
     [ValidateRange(3, 600)]
-    [int]$SilentSeconds = 12,
+    [int]$SilentSeconds = 4,
 
     [ValidateRange(0, 3600)]
     [int]$CooldownSeconds = 20,
@@ -116,6 +117,7 @@ $Settings = @{
     Font             = 'Default'           # 'Default' or 'System' (SystemFont below)
     SystemFont       = ''
     RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
+    SettingsVersion  = 2                   # 2: the wait before a fix went from 12 seconds to 4
 }
 
 if (Test-Path $SettingsPath) {
@@ -124,6 +126,10 @@ if (Test-Path $SettingsPath) {
         foreach ($name in @($Settings.Keys)) {
             if ($null -ne $saved.$name) { $Settings[$name] = $saved.$name }
         }
+        # Saved before the default wait went from 12 seconds to 4. Every setting used to
+        # be saved, defaults included, so 12 here most likely means the old default.
+        if (-not $saved.SettingsVersion -and [string]$saved.SilentSeconds -eq '12') { $Settings.SilentSeconds = 4 }
+        $Settings.SettingsVersion = 2
     }
     catch {
         Write-Warning "Ignoring the settings file, which couldn't be read: $SettingsPath"
@@ -144,7 +150,7 @@ function ConvertTo-SettingSwitch($Value) {
     [bool]$Value
 }
 
-$Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 12
+$Settings.SilentSeconds = ConvertTo-SettingNumber $Settings.SilentSeconds 3 600 4
 $Settings.CooldownSeconds = ConvertTo-SettingNumber $Settings.CooldownSeconds 0 3600 20
 $Settings.StopAfterHours = ConvertTo-SettingNumber $Settings.StopAfterHours 0 23 1
 $Settings.StopAfterMinutes = ConvertTo-SettingNumber $Settings.StopAfterMinutes 0 59 0
