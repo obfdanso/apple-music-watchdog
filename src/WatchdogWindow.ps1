@@ -953,7 +953,7 @@ function Show-WatchdogWindow {
     # Tall enough to show all of Now Playing, on screens that have the room.
     $window.Height = [Math]::Max($window.MinHeight, [Math]::Min(820.0, [System.Windows.SystemParameters]::WorkArea.Height - 40))
 
-    $ui = @{ Deadline = $null; EndedAt = $null; ArtFor = $null; ActiveSince = Get-Date; OpenedAt = Get-Date }
+    $ui = @{ Deadline = $null; EndedAt = $null; ArtFor = $null; ActiveSince = Get-Date; OpenedAt = Get-Date; ThemeCheck = 0 }
     foreach ($match in [regex]::Matches($xaml, 'x:Name="(\w+)"')) {
         $name = $match.Groups[1].Value
         $ui[$name] = $window.FindName($name)
@@ -1777,6 +1777,12 @@ function Show-WatchdogWindow {
                 # 'watchdog stop' closes the window for good, even with the tray option on.
                 if ($stopEvent.WaitOne(0)) { $ui.Quitting = $true; $window.Close(); return }
                 if ($showEvent.WaitOne(0)) { Show-FromTray }
+                # Following Windows: switch when Windows switches between light and dark.
+                # Checked every few seconds; it's a quick registry read.
+                $ui.ThemeCheck = 1 + $ui.ThemeCheck
+                if ($ui.ThemeCheck % 6 -eq 0 -and $Settings.Theme -eq 'System' -and (Test-DarkTheme) -ne $ui.Dark) {
+                    Set-Palette (Test-DarkTheme)
+                }
                 Invoke-WatchdogStep
                 $now = Get-Date
                 if ($ui.Deadline -and $Settings.PauseWhenDone -and $Settings.FadeOut -and $State.FadeFrom -lt 0 -and
