@@ -60,6 +60,7 @@ $DarkColors = @{
     Accent = '#0091FF'; Green = '#30D158'; Amber = '#FFB340'; Grey = '#8E8E8E'
     SwitchOff = '#9A9A9A'; Meter = '#FFFFFF'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#00000000'
     HeroShade = '#B81C1C1C'; ArtEmpty = '#323232'; Scroll = '#55FFFFFF'; HoverOverlay = '#18FFFFFF'
+    Glass = '#1AFFFFFF'; GlassRaised = '#1AFFFFFF'
 }
 $LightColors = @{
     Background = '#F9F9F9'; Sidebar = '#F2F2F2'; Card = '#FFFFFF'; Raised = '#EDEDED'; Line = '#E3E3E3'
@@ -67,6 +68,7 @@ $LightColors = @{
     Accent = '#0A7AFF'; Green = '#1F9E45'; Amber = '#C77700'; Grey = '#8E8E8E'
     SwitchOff = '#7A7A7A'; Meter = '#1A1A1A'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#D6D6D6'
     HeroShade = '#CCF9F9F9'; ArtEmpty = '#E8E8E8'; Scroll = '#44000000'; HoverOverlay = '#12000000'
+    Glass = '#B3FFFFFF'; GlassRaised = '#12000000'
 }
 
 $WindowXaml = @'
@@ -114,6 +116,11 @@ $WindowXaml = @'
     <Style x:Key="Card" TargetType="Border">
       <Setter Property="Background" Value="{{Card}}"/>
       <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <!-- See-through cards for Now Playing, so the song's colours show through. -->
+    <Style x:Key="GlassCard" TargetType="Border" BasedOn="{StaticResource Card}">
+      <Setter Property="Background" Value="{{Glass}}"/>
     </Style>
 
     <Style x:Key="SettingCard" TargetType="Border" BasedOn="{StaticResource Card}">
@@ -584,7 +591,7 @@ $WindowXaml = @'
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
         <Border Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="16"
-                Background="{{Card}}" Padding="14,7">
+                Background="{{Glass}}" Padding="14,7">
           <StackPanel Orientation="Horizontal">
             <Ellipse x:Name="PillDot" Width="9" Height="9" Fill="{{Green}}" VerticalAlignment="Center"/>
             <TextBlock x:Name="PillText" Text="Watching" FontSize="13.5" FontWeight="SemiBold" Margin="9,0,0,0"/>
@@ -595,7 +602,7 @@ $WindowXaml = @'
           <Button x:Name="PlayButton" Style="{StaticResource StepButton}" FontSize="19" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
           <Button x:Name="NextButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
         </StackPanel>
-        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="14" Background="{{Card}}"
+        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="14" Background="{{Glass}}"
                 BorderBrush="{{Line}}" BorderThickness="1" Margin="12,0,16,0">
           <Grid>
             <Grid.ColumnDefinitions>
@@ -636,7 +643,7 @@ $WindowXaml = @'
         <ScrollViewer x:Name="PageNow" VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Now Playing"/>
-            <Border CornerRadius="16" MinHeight="262" Background="{{Card}}">
+            <Border CornerRadius="16" MinHeight="262" Background="{{Glass}}">
               <Grid x:Name="Hero">
                 <!-- The artwork, blurred (see New-BlurredArtwork) -->
                 <Border x:Name="HeroBlur" Opacity="0.75"/>
@@ -668,34 +675,34 @@ $WindowXaml = @'
               </Grid>
             </Border>
             <UniformGrid Columns="3" Margin="-6,16,-6,0">
-              <Border Style="{StaticResource Card}" Margin="6" Padding="20,16">
+              <Border Style="{StaticResource GlassCard}" Margin="6" Padding="20,16">
                 <StackPanel>
                   <TextBlock Text="Fixes" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="StatFixes" FontFamily="{DynamicResource Display}" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
                   <TextBlock x:Name="StatFixesNote" FontSize="12.5" Foreground="{{Secondary}}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
               </Border>
-              <Border Style="{StaticResource Card}" Margin="6" Padding="20,16">
+              <Border Style="{StaticResource GlassCard}" Margin="6" Padding="20,16">
                 <StackPanel>
                   <TextBlock Text="Watching for" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="StatUptime" FontFamily="{DynamicResource Display}" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
                 </StackPanel>
               </Border>
-              <Border Style="{StaticResource Card}" Margin="6" Padding="20,16">
+              <Border Style="{StaticResource GlassCard}" Margin="6" Padding="20,16">
                 <StackPanel>
                   <TextBlock Text="Timer" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="StatTimer" FontFamily="{DynamicResource Display}" FontSize="28" FontWeight="SemiBold" Margin="0,4,0,0"/>
                 </StackPanel>
               </Border>
             </UniformGrid>
-            <Border Style="{StaticResource Card}" Margin="0,10,0,0" Padding="20,14">
+            <Border Style="{StaticResource GlassCard}" Margin="0,10,0,0" Padding="20,14">
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="44" Height="44" CornerRadius="12" Background="{{Raised}}">
+                <Border Width="44" Height="44" CornerRadius="12" Background="{{GlassRaised}}">
                   <TextBlock Text="&#xE90F;" FontFamily="{StaticResource Icons}" FontSize="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
@@ -703,19 +710,19 @@ $WindowXaml = @'
                   <TextBlock x:Name="LastFixLabel" Text="Last fix" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="LastFixText" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
-                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="14" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
+                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="14" Background="{{GlassRaised}}" Padding="12,5" VerticalAlignment="Center">
                   <TextBlock x:Name="LastFixResult" FontSize="13"/>
                 </Border>
               </Grid>
             </Border>
-            <Border Style="{StaticResource Card}" Margin="0,10,0,0" Padding="20,14">
+            <Border Style="{StaticResource GlassCard}" Margin="0,10,0,0" Padding="20,14">
               <Grid>
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="Auto"/>
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="44" Height="44" CornerRadius="12" Background="{{Raised}}">
+                <Border Width="44" Height="44" CornerRadius="12" Background="{{GlassRaised}}">
                   <TextBlock x:Name="RouteIcon" Text="&#xE7F5;" FontFamily="{StaticResource Icons}" FontSize="20"
                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
@@ -723,7 +730,7 @@ $WindowXaml = @'
                   <TextBlock x:Name="RouteLabel" Text="Playing through" FontSize="13" Foreground="{{Secondary}}"/>
                   <TextBlock x:Name="RouteName" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                 </StackPanel>
-                <Border Grid.Column="2" CornerRadius="14" Background="{{Raised}}" Padding="12,5" VerticalAlignment="Center">
+                <Border Grid.Column="2" CornerRadius="14" Background="{{GlassRaised}}" Padding="12,5" VerticalAlignment="Center">
                   <TextBlock x:Name="RouteKind" FontSize="13"/>
                 </Border>
               </Grid>
