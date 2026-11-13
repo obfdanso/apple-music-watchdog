@@ -568,7 +568,8 @@ $WindowXaml = @'
       </DockPanel>
     </Border>
 
-    <Grid Grid.Column="1">
+    <!-- The content area. On Now Playing, it's filled with the song's colours. -->
+    <Grid x:Name="Content" Grid.Column="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
         <RowDefinition Height="*"/>
@@ -1081,6 +1082,7 @@ function Show-WatchdogWindow {
             if ($other -ne $Page) { $other.Visibility = 'Collapsed' }
         }
         $Page.Visibility = 'Visible'
+        Update-PageColors
         $shift = New-Object System.Windows.Media.TranslateTransform 0, 16
         $Page.RenderTransform = $shift
         Start-Animation $Page ([System.Windows.UIElement]::OpacityProperty) 1 260 0
@@ -1310,6 +1312,35 @@ function Show-WatchdogWindow {
         Update-Display
     }
 
+    # Like Apple Music, Now Playing is filled with the song's colours: a gradient from
+    # the artwork's main colour at the top to its second colour at the bottom, darker
+    # or lighter to suit the theme. Other pages, and songs without artwork, use the
+    # plain background. The colours fade when they change.
+    $pageFill = New-Object System.Windows.Media.LinearGradientBrush
+    $pageFill.StartPoint = New-Object System.Windows.Point 0, 0
+    $pageFill.EndPoint = New-Object System.Windows.Point 0.35, 1
+    foreach ($offset in 0, 1) {
+        $pageFill.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)), $offset))
+    }
+    $ui.Content.Background = $pageFill
+    $ui.ArtColors = $null
+
+    function Update-PageColors {
+        $plain = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
+        $targets = if ($ui.ArtColors -and $ui.PageNow.Visibility -eq 'Visible') {
+            ConvertTo-PageColor $ui.ArtColors[0] $ui.Dark
+            ConvertTo-PageColor $ui.ArtColors[1] $ui.Dark
+        }
+        else { $plain, $plain }
+        for ($i = 0; $i -lt 2; $i++) {
+            $fade = New-Object System.Windows.Media.Animation.ColorAnimation
+            $fade.To = $targets[$i]
+            $fade.Duration = [TimeSpan]::FromMilliseconds(700)
+            $fade.EasingFunction = $ease
+            $pageFill.GradientStops[$i].BeginAnimation([System.Windows.Media.GradientStop]::ColorProperty, $fade)
+        }
+    }
+
     # Shows the current song's artwork, or a music note when there is none.
     function Update-Artwork {
         # Includes whether there's artwork yet: Apple Music sometimes sends it a moment
@@ -1333,6 +1364,7 @@ function Show-WatchdogWindow {
             $ui.HeroBlur.Background = $blurred
             $ui.ArtSmallEmpty.Visibility = 'Collapsed'
             $ui.ArtBigEmpty.Visibility = 'Collapsed'
+            $ui.ArtColors = try { Get-ArtworkColors $image } catch { $null }
         }
         else {
             $ui.ArtSmall.Background = $brush.ArtEmpty
@@ -1340,7 +1372,9 @@ function Show-WatchdogWindow {
             $ui.HeroBlur.Background = $null
             $ui.ArtSmallEmpty.Visibility = 'Visible'
             $ui.ArtBigEmpty.Visibility = 'Visible'
+            $ui.ArtColors = $null
         }
+        Update-PageColors
         foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.HeroTitle, $ui.HeroArtist, $ui.LcdTitle, $ui.LcdArtist) {
             Start-Animation $target ([System.Windows.UIElement]::OpacityProperty) 1 400 0
         }
@@ -1597,6 +1631,7 @@ function Show-WatchdogWindow {
         $Settings.Theme = $Choice
         Save-WatchdogSetting
         Set-Palette (Test-UseDark)
+        Update-PageColors
         Update-Display
     }
     $ui.ThemeSystem.Add_Click({ Set-ThemeChoice 'System' })
@@ -1782,6 +1817,7 @@ function Show-WatchdogWindow {
                 $ui.ThemeCheck = 1 + $ui.ThemeCheck
                 if ($ui.ThemeCheck % 6 -eq 0 -and $Settings.Theme -eq 'System' -and (Test-DarkTheme) -ne $ui.Dark) {
                     Set-Palette (Test-DarkTheme)
+                    Update-PageColors
                 }
                 Invoke-WatchdogStep
                 $now = Get-Date
@@ -1869,6 +1905,95 @@ function Get-FontChoice {
         $choices[$name] = $found[$name]
     }
     $choices
+}
+
+# The artwork's two main colours, for filling Now Playing: the most common colour,
+# and the most common one that's clearly different (or the first again if there
+# isn't one). Bright, colourful pixels count for more, so a colourful cover isn't
+# summed up by its grey background, but a black-and-white cover still gives greys.
+# Near-black or near-white only leads if there's no real colour in a good share of
+# the cover, so a cover that's mostly shadow still gets its colour.
+function Get-ArtworkColors($Image) {
+    $scale = New-Object System.Windows.Media.ScaleTransform (32.0 / $Image.PixelWidth), (32.0 / $Image.PixelHeight)
+    $small = New-Object System.Windows.Media.Imaging.TransformedBitmap $Image, $scale
+    $pixels = New-Object System.Windows.Media.Imaging.FormatConvertedBitmap $small, ([System.Windows.Media.PixelFormats]::Bgra32), $null, 0
+    $bytes = New-Object byte[] ($pixels.PixelWidth * $pixels.PixelHeight * 4)
+    $pixels.CopyPixels($bytes, $pixels.PixelWidth * 4, 0)
+    # Group similar colours: 8 levels each of red, green and blue.
+    $weight = New-Object double[] 512
+    $red = New-Object double[] 512
+    $green = New-Object double[] 512
+    $blue = New-Object double[] 512
+    for ($i = 0; $i -lt $bytes.Length; $i += 4) {
+        $b = [int]$bytes[$i]; $g = [int]$bytes[$i + 1]; $r = [int]$bytes[$i + 2]
+        $max = [Math]::Max($r, [Math]::Max($g, $b))
+        $min = [Math]::Min($r, [Math]::Min($g, $b))
+        $w = if ($max -gt 0) { 1.0 + 3.0 * ($max - $min) / 255.0 } else { 1.0 }
+        $group = (($r -shr 5) -shl 6) -bor (($g -shr 5) -shl 3) -bor ($b -shr 5)
+        $weight[$group] += $w
+        $red[$group] += $r * $w
+        $green[$group] += $g * $w
+        $blue[$group] += $b * $w
+    }
+    $first = 0
+    for ($i = 1; $i -lt 512; $i++) { if ($weight[$i] -gt $weight[$first]) { $first = $i } }
+    $average = { param($n) [System.Windows.Media.Color]::FromRgb([byte]($red[$n] / $weight[$n]), [byte]($green[$n] / $weight[$n]), [byte]($blue[$n] / $weight[$n])) }
+    $isExtreme = { param($c) [Math]::Max($c.R, [Math]::Max($c.G, $c.B)) -lt 48 -or [Math]::Min($c.R, [Math]::Min($c.G, $c.B)) -gt 225 }
+    if (& $isExtreme (& $average $first)) {
+        $best = $null
+        for ($i = 0; $i -lt 512; $i++) {
+            if ($weight[$i] -lt $weight[$first] * 0.15 -or (& $isExtreme (& $average $i))) { continue }
+            if ($null -eq $best -or $weight[$i] -gt $weight[$best]) { $best = $i }
+        }
+        if ($null -ne $best) { $first = $best }
+    }
+    $main = & $average $first
+    $second = $null
+    for ($i = 0; $i -lt 512; $i++) {
+        if ($weight[$i] -lt $weight[$first] * 0.05) { continue }
+        $color = & $average $i
+        $distance = [Math]::Sqrt([Math]::Pow($color.R - $main.R, 2) + [Math]::Pow($color.G - $main.G, 2) + [Math]::Pow($color.B - $main.B, 2))
+        if ($distance -gt 64 -and ($null -eq $second -or $weight[$i] -gt $weight[$second])) { $second = $i }
+    }
+    $other = if ($null -ne $second) { & $average $second } else { $main }
+    , @($main, $other)
+}
+
+# An artwork colour turned into a background that text stays readable on: dark and
+# not too vivid for the dark theme, pale for the light one. Keeps the colour's hue.
+function ConvertTo-PageColor([System.Windows.Media.Color]$Color, [bool]$Dark) {
+    $r = $Color.R / 255.0; $g = $Color.G / 255.0; $b = $Color.B / 255.0
+    $max = [Math]::Max($r, [Math]::Max($g, $b)); $min = [Math]::Min($r, [Math]::Min($g, $b))
+    $lightness = ($max + $min) / 2
+    $chroma = $max - $min
+    if ($chroma -lt 0.06) { $chroma = 0.0 }   # near-grey: keep it grey, not faintly tinted
+    $saturation = if ($chroma -eq 0) { 0.0 } else { [Math]::Min(1.0, $chroma / (1 - [Math]::Abs(2 * $lightness - 1))) }
+    $hue = if ($chroma -eq 0) { 0.0 }
+    elseif ($max -eq $r) { 60 * ((($g - $b) / $chroma) % 6) }
+    elseif ($max -eq $g) { 60 * (($b - $r) / $chroma + 2) }
+    else { 60 * (($r - $g) / $chroma + 4) }
+    if ($hue -lt 0) { $hue += 360 }
+    if ($Dark) {
+        $lightness = [Math]::Min(0.32, [Math]::Max(0.14, 0.06 + 0.8 * $lightness))
+        $saturation = [Math]::Min(0.6, $saturation)
+    }
+    else {
+        $lightness = 0.80 + 0.12 * $lightness
+        $saturation = [Math]::Min(0.50, $saturation)
+    }
+    # Back to red, green and blue.
+    $c = (1 - [Math]::Abs(2 * $lightness - 1)) * $saturation
+    $x = $c * (1 - [Math]::Abs((($hue / 60) % 2) - 1))
+    $m = $lightness - $c / 2
+    $rgb = switch ([int][Math]::Floor($hue / 60) % 6) {
+        0 { $c, $x, 0.0 }
+        1 { $x, $c, 0.0 }
+        2 { 0.0, $c, $x }
+        3 { 0.0, $x, $c }
+        4 { $x, 0.0, $c }
+        default { $c, 0.0, $x }
+    }
+    [System.Windows.Media.Color]::FromRgb([byte](255 * ($rgb[0] + $m)), [byte](255 * ($rgb[1] + $m)), [byte](255 * ($rgb[2] + $m)))
 }
 
 # Reads a song's album art (a Windows media thumbnail) into an image the window can show.
