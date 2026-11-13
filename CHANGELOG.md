@@ -6,7 +6,7 @@
 - The window adds an Apple Music Watchdog shortcut to the Start menu and the project folder. It opens the window with no console window, and the taskbar shows the watchdog's own icon.
 - Starting in the background or at sign-in no longer flashes a console window.
 - Optionally keeps running in the system tray when the window is closed.
-- A choice of font for the window: the default, any installed font, or Anthropic Sans if you have it.
+- A choice of font for the window: the default, or any installed font.
 - Settings changed in the window are saved and used in the background too.
 - Works when started from PowerShell 7 by handing over to Windows PowerShell 5.1.
 - `watchdog stop` now lets the watchdog shut down cleanly and log that it stopped.

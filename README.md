@@ -62,7 +62,7 @@ Every fix is also written to the log (see [The log](#the-log)).
 
 Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to see the current song, play, pause or skip, start or stop watching, or quit. Opening the shortcut again also brings the window back.
 
-For the font there are three choices: **Default** (Segoe UI Variable), **System font** (any font installed on your PC, picked from a searchable list) and **Anthropic Sans**. Anthropic Sans isn't included because it isn't freely licensed. If you have it, install it, or put its font files in the [`fonts`](fonts) folder.
+For the font there are two choices: **Default** (Segoe UI Variable) and **System font** (any font installed on your PC, picked from a searchable list). To use a font without installing it, put its files in the [`fonts`](fonts) folder.
 
 If the watchdog was already running in the background, opening the window takes over from it. Your settings are remembered for next time.
 
