@@ -924,9 +924,10 @@ $WindowXaml = @'
 '@
 
 function Show-WatchdogWindow {
-    $colors = if (Test-DarkTheme) { $DarkColors } else { $LightColors }
+    # Every colour is a shared brush in the window's resources (c_Background and so
+    # on), so switching between light and dark can change them all at once.
     $xaml = $WindowXaml
-    foreach ($key in $colors.Keys) { $xaml = $xaml.Replace("{{$key}}", $colors[$key]) }
+    foreach ($key in $DarkColors.Keys) { $xaml = $xaml.Replace("{{$key}}", "{DynamicResource c_$key}") }
     $window = [Windows.Markup.XamlReader]::Parse($xaml)
     # Tall enough to show all of Now Playing, on screens that have the room.
     $window.Height = [Math]::Max($window.MinHeight, [Math]::Min(820.0, [System.Windows.SystemParameters]::WorkArea.Height - 40))
@@ -936,11 +937,50 @@ function Show-WatchdogWindow {
         $name = $match.Groups[1].Value
         $ui[$name] = $window.FindName($name)
     }
-    $brush = @{}
-    foreach ($key in $colors.Keys) {
-        $brush[$key] = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString($colors[$key]))
-        $brush[$key].Freeze()
+    $colors = @{}   # the colours in use, by name, as #RRGGBB
+    $brush = @{}    # the shared brushes, by name
+
+    # Uses the light or dark colours. Every colour fades to its new value, unless
+    # -Instant (when the window opens).
+    function Set-Palette([bool]$Dark, [switch]$Instant) {
+        $ui.Dark = $Dark
+        $palette = if ($Dark) { $DarkColors } else { $LightColors }
+        foreach ($key in $palette.Keys) {
+            $colors[$key] = $palette[$key]
+            $color = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[$key])
+            if (-not $brush[$key]) {
+                # ::new, not New-Object: the resource dictionary rejects PowerShell's wrapper.
+                $brush[$key] = [System.Windows.Media.SolidColorBrush]::new($color)
+                $window.Resources["c_$key"] = $brush[$key]
+            }
+            elseif ($Instant) {
+                $brush[$key].BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $null)
+                $brush[$key].Color = $color
+            }
+            else {
+                $fade = New-Object System.Windows.Media.Animation.ColorAnimation
+                $fade.To = $color
+                $fade.Duration = [TimeSpan]::FromMilliseconds(350)
+                $fade.EasingFunction = $ease
+                $brush[$key].BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $fade)
+            }
+        }
+        if ($wave) { $wave.SetFill([System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.ColorConverter]::ConvertFromString($colors.Meter))) }
+        Set-TitleBarColor
     }
+
+    # Title bar in the same colours as the window (Windows 11; ignored elsewhere).
+    function Set-TitleBarColor {
+        $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
+        if ($handle -eq [IntPtr]::Zero) { return }   # not shown yet
+        $dark = [int]$ui.Dark
+        [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 20, [ref]$dark, 4)
+        $color = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
+        $colorRef = [int]$color.R -bor ([int]$color.G -shl 8) -bor ([int]$color.B -shl 16)
+        [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 35, [ref]$colorRef, 4)
+    }
+
+    Set-Palette (Test-DarkTheme) -Instant
 
     # An error in a button or switch (say the settings file is locked for a moment)
     # shouldn't close the window and stop the watchdog: log it and carry on.
@@ -953,18 +993,9 @@ function Show-WatchdogWindow {
     # cleaning up (pressing play again, putting the volume back). Log them instead.
     [System.Windows.Forms.Application]::add_ThreadException({ Add-LogLine "Error: $($args[1].Exception.Message)" })
 
-    # Title bar in the same colours as the window (Windows 11; ignored elsewhere).
     # Event handlers here are plain script blocks, not closures, so they can call
     # the functions defined in this function; they run while the window is open.
-    $isDark = [int]($colors -eq $DarkColors)
-    $window.Add_SourceInitialized({
-            $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
-            $dark = $isDark
-            [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 20, [ref]$dark, 4)
-            $color = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
-            $colorRef = [int]$color.R -bor ([int]$color.G -shl 8) -bor ([int]$color.B -shl 16)
-            [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 35, [ref]$colorRef, 4)
-        })
+    $window.Add_SourceInitialized({ Set-TitleBarColor })
 
     # Our own taskbar identity, so the taskbar shows this icon rather than PowerShell's.
     try { [WindowsShell]::SetAppId($AppId) } catch { Write-Verbose "Couldn't set the taskbar identity: $($_.Exception.Message)" }
