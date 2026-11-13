@@ -1374,8 +1374,9 @@ function Show-WatchdogWindow {
             $ui.ArtColors = try { Get-ArtworkPalette $image } catch { $null }
         }
         else {
-            $ui.ArtSmall.Background = $brush.ArtEmpty
-            $ui.ArtBig.Background = $brush.ArtEmpty
+            # By name, so it follows the theme when that changes.
+            $ui.ArtSmall.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, 'c_ArtEmpty')
+            $ui.ArtBig.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, 'c_ArtEmpty')
             $ui.HeroBlur.Background = $null
             $ui.ArtSmallEmpty.Visibility = 'Visible'
             $ui.ArtBigEmpty.Visibility = 'Visible'
