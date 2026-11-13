@@ -733,7 +733,7 @@ $WindowXaml = @'
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
                   <TextBlock Style="{StaticResource RowTitle}" Text="Pause and play after"/>
-                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. Keep it longer than the gap between songs."/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="How long Apple Music can say it's playing with no sound before the watchdog steps in. A few seconds is longer than the gap between songs."/>
                 </StackPanel>
                 <Border Grid.Column="1" Style="{StaticResource Stepper}">
                   <StackPanel Orientation="Horizontal">
