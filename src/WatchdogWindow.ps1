@@ -44,6 +44,13 @@ function Test-DarkTheme {
     $light -eq 0
 }
 
+# Whether the window should be dark: the Theme setting, or Windows' own setting.
+function Test-UseDark {
+    if ($Settings.Theme -eq 'Dark') { return $true }
+    if ($Settings.Theme -eq 'Light') { return $false }
+    Test-DarkTheme
+}
+
 # Colours sampled from the Apple Music app for Windows (dark), with a matching light set.
 # Like Apple Music since its 2026 redesign: neutral greys, white text, and blue as the
 # only accent. The album art supplies the rest of the colour.
@@ -873,6 +880,20 @@ $WindowXaml = @'
             </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Appearance" Margin="2,22,0,10"/>
             <Border Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
+                  <TextBlock Style="{StaticResource RowTitle}" Text="Theme"/>
+                  <TextBlock Style="{StaticResource RowHint}" Text="Light or dark, or the same as Windows."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Button x:Name="ThemeSystem" Style="{StaticResource Chip}" Content="System"/>
+                  <Button x:Name="ThemeLight" Style="{StaticResource Chip}" Content="Light"/>
+                  <Button x:Name="ThemeDark" Style="{StaticResource Chip}" Content="Dark" Margin="0"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Border Style="{StaticResource SettingCard}">
               <StackPanel>
                 <Grid>
                   <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -948,22 +969,23 @@ function Show-WatchdogWindow {
         foreach ($key in $palette.Keys) {
             $colors[$key] = $palette[$key]
             $color = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[$key])
-            if (-not $brush[$key]) {
-                # ::new, not New-Object: the resource dictionary rejects PowerShell's wrapper.
-                $brush[$key] = [System.Windows.Media.SolidColorBrush]::new($color)
-                $window.Resources["c_$key"] = $brush[$key]
-            }
-            elseif ($Instant) {
-                $brush[$key].BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $null)
-                $brush[$key].Color = $color
+            # A new brush each time: WPF locks a brush once its styles use it, so the old
+            # one can't change. ::new, not New-Object: the resource dictionary rejects
+            # PowerShell's wrapper.
+            if ($Instant -or -not $brush[$key]) {
+                $new = [System.Windows.Media.SolidColorBrush]::new($color)
             }
             else {
+                # Fades from the old colour to the new one.
+                $new = [System.Windows.Media.SolidColorBrush]::new($brush[$key].Color)
                 $fade = New-Object System.Windows.Media.Animation.ColorAnimation
                 $fade.To = $color
                 $fade.Duration = [TimeSpan]::FromMilliseconds(350)
                 $fade.EasingFunction = $ease
-                $brush[$key].BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $fade)
+                $new.BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $fade)
             }
+            $brush[$key] = $new
+            $window.Resources["c_$key"] = $new
         }
         if ($wave) { $wave.SetFill([System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.ColorConverter]::ConvertFromString($colors.Meter))) }
         Set-TitleBarColor
@@ -980,7 +1002,7 @@ function Show-WatchdogWindow {
         [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 35, [ref]$colorRef, 4)
     }
 
-    Set-Palette (Test-DarkTheme) -Instant
+    Set-Palette (Test-UseDark) -Instant
 
     # An error in a button or switch (say the settings file is locked for a moment)
     # shouldn't close the window and stop the watchdog: log it and carry on.
@@ -1470,6 +1492,14 @@ function Show-WatchdogWindow {
         $ui.CooldownDown.IsEnabled = $Settings.CooldownSeconds -gt 0
         $ui.CooldownUp.IsEnabled = $Settings.CooldownSeconds -lt 3600
 
+        # Theme
+        foreach ($choice in 'System', 'Light', 'Dark') {
+            $chip = $ui["Theme$choice"]
+            $on = $Settings.Theme -eq $choice
+            Set-AnimatedBrush $chip 'Background' $(if ($on) { $colors.Accent } else { $colors.Raised })
+            Set-AnimatedBrush $chip 'Foreground' $(if ($on) { '#FFFFFF' } else { $colors.Text })
+        }
+
         # Font
         foreach ($choice in 'Default', 'System') {
             $chip = $ui["Font$choice"]
@@ -1562,6 +1592,16 @@ function Show-WatchdogWindow {
         Set-WindowFont
         Update-Display
     }
+
+    function Set-ThemeChoice([string]$Choice) {
+        $Settings.Theme = $Choice
+        Save-WatchdogSetting
+        Set-Palette (Test-UseDark)
+        Update-Display
+    }
+    $ui.ThemeSystem.Add_Click({ Set-ThemeChoice 'System' })
+    $ui.ThemeLight.Add_Click({ Set-ThemeChoice 'Light' })
+    $ui.ThemeDark.Add_Click({ Set-ThemeChoice 'Dark' })
 
     $ui.FontDefault.Add_Click({ Set-FontChoice 'Default' })
     $ui.FontSystem.Add_Click({ Set-FontChoice 'System' })
