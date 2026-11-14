@@ -119,6 +119,8 @@ $Settings = @{
     Notify           = $true               # Windows notifications when something goes wrong
     Theme            = 'System'            # the window's colours: 'System' (follow Windows), 'Light' or 'Dark'
     RestoreVolume    = -1.0                # Apple Music's volume before a fade, until it's put back
+    MiniLeft         = $null               # where the mini player was last, if it's been opened
+    MiniTop          = $null
     SettingsVersion  = 2                   # 2: the wait before a fix went from 12 seconds to 4
 }
 
