@@ -47,7 +47,7 @@ watchdog install
 
 ## The window
 
-The window is styled after the Apple Music app. It's light or dark to match Windows, or whichever you pick under **Theme** in Settings. Both pages are filled with the colours of the current song's artwork, like Apple Music, with see-through cards. Along the top are previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are (hover over it for the times), and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
+The window is styled after the Apple Music app. It's light or dark to match Windows, or whichever you pick under **Theme** in Settings. The whole window, sidebar and title bar included, is filled with the colours of the current song's artwork, like Apple Music, with see-through cards. Along the top are previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are (hover over it for the times), and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
 
 - **Now Playing:** the song and artwork with a live waveform of the sound coming out of Apple Music. Below that, a bar shows what the watchdog is doing, such as "No sound for 2 sec. Pausing and playing at 4 sec." or "Waiting for the internet to come back". Then how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
 - **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the theme (System, Light or Dark), whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
@@ -132,7 +132,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\src\AppleMusicWatchdog.ps1 -Silen
 - **Restarts:** after a restart it only comes back on its own if you turned on **Start when I sign in** (or ran `watchdog install`).
 - **Restarting Apple Music:** when the watchdog restarts Apple Music as a last resort, Apple Music may not pick up exactly where it left off and can start a different song.
 - **Console window:** Windows always opens a console window for a moment when you double-click a `.cmd` file. The **Apple Music Watchdog** shortcut doesn't, and neither does the watchdog when it starts in the background or at sign-in.
-- **Taskbar:** the window shows up on the taskbar with its own icon. If you pin it, the pin opens the window the same way the shortcut does.
+- **Taskbar:** the window shows up on the taskbar with its own icon: a white tile with a black pulse, or black with a white pulse when the taskbar is dark. If you pin it, the pin opens the window the same way the shortcut does.
 
 ## How it works
 
