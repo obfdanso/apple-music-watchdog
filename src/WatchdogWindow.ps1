@@ -58,7 +58,7 @@ $DarkColors = @{
     Background = '#1C1C1C'; Sidebar = '#26000000'; SidebarEdge = '#14FFFFFF'; Card = '#282828'; Raised = '#323232'; Line = '#3A3A3A'
     Text = '#FFFFFF'; Secondary = '#A3A3A3'; Hover = '#2A2A2A'; Selected = '#303030'; Track = '#4A4A4A'
     Accent = '#0091FF'; Green = '#30D158'; Amber = '#FFB340'; Grey = '#8E8E8E'
-    SwitchOff = '#9A9A9A'; Meter = '#FFFFFF'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#00000000'
+    SwitchOff = '#9A9A9A'; Meter = '#FFFFFF'; Logo = '#000000'; LogoGlyph = '#FFFFFF'; LogoEdge = '#33FFFFFF'
     HeroShade = '#B81C1C1C'; ArtEmpty = '#323232'; Scroll = '#55FFFFFF'; HoverOverlay = '#18FFFFFF'
     Glass = '#1AFFFFFF'; GlassRaised = '#1AFFFFFF'; NavPicked = '#22FFFFFF'
 }
