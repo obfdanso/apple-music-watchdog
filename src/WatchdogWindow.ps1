@@ -1332,14 +1332,14 @@ function Show-WatchdogWindow {
         $dot = $colors.Green
         $watch = if (-not $State.Active) {
             $dot = $colors.Grey
-            if ($ui.EndedAt) { 'Not watching. The timer ran out.' } else { 'Not watching. Press Start Watching when you''re ready.' }
+            if ($ui.EndedAt) { 'The timer ran out.' } else { 'Press Start Watching when you''re ready.' }
         }
         elseif ($State.FadeFrom -ge 0) {
             'Time''s nearly up. Fading the music out...'
         }
         elseif ($State.Phase -eq 'Offline') {
             $dot = $colors.Amber
-            'No sound, and Apple Music can''t be reached. Waiting for the internet to come back, then the watchdog will fix it.'
+            'Apple Music can''t be reached. The watchdog will fix the sound once the internet is back.'
         }
         elseif ($State.Phase -eq 'Checking') {
             $dot = $colors.Amber
@@ -1369,13 +1369,12 @@ function Show-WatchdogWindow {
             'Sound is coming through.'
         }
         elseif ($State.PausedByYou -and $Settings.RespectPause) {
-            'Watching. You paused Apple Music, so it stays paused until you press play.'
+            'You paused Apple Music, so it stays paused until you press play.'
         }
         else {
-            'Watching. Waiting for Apple Music to play.'
+            'Waiting for Apple Music to play.'
         }
         Set-Text $ui.HeroWatch $watch -Fade:($ui.HeroWatch.Text -notlike 'No sound for*' -or $watch -notlike 'No sound for*')
-        Set-AnimatedBrush $ui.HeroDot 'Fill' $dot
         Set-AnimatedBrush $ui.PillDot 'Fill' $dot
         $pill = if (-not $State.Active) { 'Not watching' }
         elseif ($State.Phase -eq 'Offline') { 'Offline' }
