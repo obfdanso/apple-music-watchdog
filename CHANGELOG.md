@@ -6,7 +6,6 @@
 - The window adds an Apple Music Watchdog shortcut to the Start menu and the project folder. It opens the window with no console window, and the taskbar shows the watchdog's own icon.
 - Starting in the background or at sign-in no longer flashes a console window.
 - Optionally keeps running in the system tray when the window is closed.
-- A choice of font for the window: the default, or any installed font.
 - Settings changed in the window are saved and used in the background too.
 - Works when started from PowerShell 7 by handing over to Windows PowerShell 5.1.
 - `watchdog stop` now lets the watchdog shut down cleanly and log that it stopped.
@@ -20,7 +19,6 @@
 - A **Last fix** card on Now Playing: what the last fix did, during which song, and whether the sound came back.
 - Silent Windows notifications when the internet drops out, when a fix took more than pausing and playing, or when nothing worked. They can be turned off in Settings.
 - Smooth scrolling that moves further per wheel notch, and rounder cards, buttons and artwork.
-- A hint under **System font** when no font has been picked yet, or the picked one isn't installed any more.
 - A **Theme** setting: follow Windows, or always light or dark. Switching fades the colours over, and following Windows switches as soon as Windows does.
 - Now Playing is filled with the colours of the current song's artwork, with see-through cards, like Apple Music.
 - The watchdog steps in after 4 seconds of silence instead of 12. Settings still on the old default of 12 move to 4.

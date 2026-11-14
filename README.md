@@ -50,7 +50,7 @@ watchdog install
 The window is styled after the Apple Music app. It's light or dark to match Windows, or whichever you pick under **Theme** in Settings. Along the top you'll see whether it's watching, previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are, and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
 
 - **Now Playing:** filled with the colours of the current song's artwork, like Apple Music. It shows the song and artwork, a live waveform of the sound coming out of Apple Music, and what the watchdog is doing about it, such as "No sound for 2 sec. Pausing and playing at 4 sec." or "Waiting for the internet to come back". Below that, how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
-- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the theme (System, Light or Dark), the window's font, whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
+- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the theme (System, Light or Dark), whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
 
 For the **timer**, turn on **Stop after a set time** in Settings and pick a duration, or tap one of the presets (15 minutes to 4 hours). The countdown starts when you press **Start Watching**. When the time is up it stops watching and, unless you turn that off, pauses Apple Music. With **Fade out first** on, it turns Apple Music down slowly over the last 30 seconds before pausing, then puts the volume back.
 
@@ -61,8 +61,6 @@ With **Notifications** on (the default), Windows shows a silent notification whe
 Every fix is also written to the log (see [The log](#the-log)).
 
 Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to see the current song, play, pause or skip, start or stop watching, or quit. Opening the shortcut again also brings the window back.
-
-For the font there are two choices: **Default** (Segoe UI Variable) and **System font** (any font installed on your PC, picked from a searchable list). To use a font without installing it, put its files in the [`fonts`](fonts) folder.
 
 If the watchdog was already running in the background, opening the window takes over from it. Your settings are remembered for next time.
 
