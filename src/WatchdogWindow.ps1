@@ -560,7 +560,6 @@ $WindowXaml = @'
                                TextTrimming="CharacterEllipsis" Margin="0,6,0,0"/>
                     <TextBlock x:Name="HeroArtist" FontSize="16" Foreground="{{Secondary}}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
                     <Canvas x:Name="Wave" Margin="0,26,0,0" Width="340" Height="44" HorizontalAlignment="Left" ClipToBounds="True"/>
-                    <TextBlock Text="Sound coming out of Apple Music" FontSize="12.5" Foreground="{{Secondary}}" Margin="0,7,0,0"/>
                   </StackPanel>
                 </Grid>
               </Grid>
