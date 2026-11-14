@@ -771,11 +771,17 @@ $WindowXaml = @'
                 <CheckBox x:Name="FadeOut" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
             </Border>
-            <Border Style="{StaticResource SettingCard}">
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock x:Name="TimerBig" FontFamily="{DynamicResource Display}" FontSize="26" FontWeight="SemiBold"/>
-                <TextBlock x:Name="TimerSmall" Style="{StaticResource RowHint}"/>
-              </StackPanel>
+            <!-- The countdown, shown while the timer is on. -->
+            <Border x:Name="TimerCard" Style="{StaticResource SettingCard}">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock x:Name="TimerBig" FontFamily="{DynamicResource Display}" FontSize="26" FontWeight="SemiBold"/>
+                  <TextBlock x:Name="TimerSmall" Style="{StaticResource RowHint}"/>
+                </StackPanel>
+                <Button x:Name="TimerExtend" Grid.Column="1" Style="{StaticResource Chip}" Content="+15 min" Margin="0"
+                        VerticalAlignment="Center" Visibility="Collapsed"/>
+              </Grid>
             </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Power" Margin="2,22,0,10"/>
             <Border Style="{StaticResource SettingCard}">
@@ -1454,10 +1460,9 @@ function Show-WatchdogWindow {
             Set-Text $ui.TimerBig (Format-Duration $minutes)
             Set-Text $ui.TimerSmall 'Starts when the watchdog starts watching.'
         }
-        else {
-            Set-Text $ui.TimerBig 'Off'
-            Set-Text $ui.TimerSmall 'The watchdog runs until you close this window.'
-        }
+        # Only while the timer is on (or has just run out); otherwise there's nothing to show.
+        $ui.TimerCard.Visibility = if ($on -or $ui.Deadline -or $ui.EndedAt) { 'Visible' } else { 'Collapsed' }
+        $ui.TimerExtend.Visibility = if ($ui.Deadline) { 'Visible' } else { 'Collapsed' }
     }
 
     function Set-ThemeChoice([string]$Choice) {
@@ -1539,6 +1544,14 @@ function Show-WatchdogWindow {
     $ui.RespectPause.Add_Checked($onRespectPause); $ui.RespectPause.Add_Unchecked($onRespectPause)
     $onNotify = { $Settings.Notify = [bool]$ui.Notify.IsChecked; Save-WatchdogSetting }
     $ui.Notify.Add_Checked($onNotify); $ui.Notify.Add_Unchecked($onNotify)
+    # +15 min on the countdown: more time this once, without changing the timer's length.
+    $ui.TimerExtend.Add_Click({
+            if (-not $ui.Deadline) { return }
+            Stop-Fade   # if it had started fading out, the volume goes back up
+            $ui.Deadline = $ui.Deadline.AddMinutes(15)
+            Add-LogLine ('Timer extended to {0:HH:mm}' -f $ui.Deadline)
+            Update-Display
+        })
     $ui.HoursDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 60) })
     $ui.HoursUp.Add_Click({ Set-TimerLength ((Get-TimerLength) + 60) })
     $ui.MinutesDown.Add_Click({ Set-TimerLength ((Get-TimerLength) - 5) })
