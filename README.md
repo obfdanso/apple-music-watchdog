@@ -47,10 +47,10 @@ watchdog install
 
 ## The window
 
-The window is styled after the Apple Music app. It's light or dark to match Windows, or whichever you pick under **Theme** in Settings. The whole window, sidebar and title bar included, is filled with the colours of the current song's artwork, like Apple Music, with see-through cards. Along the top are previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are (hover over it for the times), and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
+The window is styled after the Apple Music app. It's light or dark to match Windows, or whichever you pick under **Theme** in Settings. The whole window, sidebar and title bar included, is filled with the colours of the current song's artwork, like Apple Music, with see-through cards. Along the top are previous, play/pause and next buttons that control Apple Music, the current song with its artwork and how far into it you are (hover over it for the times), a mini player button, and a **Start Watching** / **Stop Watching** button. It doesn't start watching until you press that button. The sidebar has two pages:
 
-- **Now Playing:** the song and artwork with a live waveform of the sound coming out of Apple Music. Below that, a bar shows what the watchdog is doing, such as "No sound for 2 sec. Pausing and playing at 4 sec." or "Waiting for the internet to come back". Then how many times it has fixed the music, how long it has been watching, the timer, the last fix (what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
-- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the theme (System, Light or Dark), whether to start at sign-in, and whether closing the window hides it in the tray. Changes take effect straight away.
+- **Now Playing:** the song and artwork with a live waveform of the sound coming out of Apple Music. Below that, a bar shows what the watchdog is doing, such as "No sound for 2 sec. Pausing and playing at 4 sec." or "Waiting for the internet to come back". Then how many times it has fixed the music, how long it has been watching, the timer, the **Fix history** (each fix, newest first: what it did, during which song, when, and whether the sound came back), and which device the music is playing through (for example "oraimo Rover, Bluetooth headphones" or "This PC's speakers").
+- **Settings:** how long the music can be silent before it pauses and plays, how long to wait before trying again, whether to restart Apple Music as a last resort, **Stay paused when I pause** (see below), notifications, the timer, whether to keep the PC awake while music plays, the theme (System, Light or Dark), whether to start at sign-in, whether closing the window hides it in the tray, and a list of the keyboard shortcuts. Changes take effect straight away.
 
 For the **timer**, turn on **Stop after a set time** in Settings and pick a duration, or tap one of the presets (15 minutes to 4 hours). The countdown starts when you press **Start Watching**, and shows in Settings with a **+15 min** button for more time. When the time is up it stops watching and, unless you turn that off, pauses Apple Music. With **Fade out first** on, it turns Apple Music down slowly over the last 30 seconds before pausing, then puts the volume back.
 
@@ -58,9 +58,22 @@ The watchdog only fixes songs that Apple Music says are playing, so a song you p
 
 With **Notifications** on (the default), Windows shows a silent notification when the internet drops out, when it took more than pausing and playing to get the sound back (for example "Skipped to the next song"), or when nothing worked. They show up once the window has been opened at least once, since Windows needs the Start menu shortcut it adds.
 
-Every fix is also written to the log (see [The log](#the-log)).
+Every fix is also written to the log (see [The log](#the-log)). The **Fix history** on Now Playing keeps the last 50 fixes, also after the window is closed, and **Clear** empties it.
 
-Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to see the current song, play, pause or skip, start or stop watching, or quit. Opening the shortcut again also brings the window back.
+The **mini player** (the button next to Start Watching, or press M) swaps the window for a small one that stays on top of other windows: the artwork, the song and how far into it you are, previous, play/pause and next, and whether the watchdog is watching (click that to start or stop). It's filled with the song's colours too. Drag it anywhere; it opens there next time. Double-click it, press Esc, or use the button in its corner to go back to the full window.
+
+**Keyboard shortcuts** work in both windows:
+
+| Key | Does |
+| --- | --- |
+| Space | Play or pause |
+| Left / Right | Previous or next song |
+| W | Start or stop watching |
+| M | Mini player, or back to the full window |
+| Esc | Back to the full window, from the mini player |
+| Ctrl+1 / Ctrl+2 | Now Playing or Settings |
+
+Closing the window stops the watchdog. If you'd rather it kept going, turn on **Keep running in the tray when closed** in Settings. Then the close button hides the window in the system tray, off the taskbar, and the watchdog keeps working. Click the tray icon to bring the window back, or right-click it to see the current song, play, pause or skip, open the mini player, start or stop watching, or quit. Opening the shortcut again also brings the window back.
 
 If the watchdog was already running in the background, opening the window takes over from it. Your settings are remembered for next time.
 
