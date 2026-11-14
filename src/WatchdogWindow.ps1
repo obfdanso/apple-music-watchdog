@@ -55,20 +55,20 @@ function Test-UseDark {
 # Like Apple Music since its 2026 redesign: neutral greys, white text, and blue as the
 # only accent. The album art supplies the rest of the colour.
 $DarkColors = @{
-    Background = '#1C1C1C'; Sidebar = '#201F21'; Card = '#282828'; Raised = '#323232'; Line = '#3A3A3A'
+    Background = '#1C1C1C'; Sidebar = '#26000000'; SidebarEdge = '#14FFFFFF'; Card = '#282828'; Raised = '#323232'; Line = '#3A3A3A'
     Text = '#FFFFFF'; Secondary = '#A3A3A3'; Hover = '#2A2A2A'; Selected = '#303030'; Track = '#4A4A4A'
     Accent = '#0091FF'; Green = '#30D158'; Amber = '#FFB340'; Grey = '#8E8E8E'
     SwitchOff = '#9A9A9A'; Meter = '#FFFFFF'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#00000000'
     HeroShade = '#B81C1C1C'; ArtEmpty = '#323232'; Scroll = '#55FFFFFF'; HoverOverlay = '#18FFFFFF'
-    Glass = '#1AFFFFFF'; GlassRaised = '#1AFFFFFF'
+    Glass = '#1AFFFFFF'; GlassRaised = '#1AFFFFFF'; NavPicked = '#22FFFFFF'
 }
 $LightColors = @{
-    Background = '#F9F9F9'; Sidebar = '#F2F2F2'; Card = '#FFFFFF'; Raised = '#EDEDED'; Line = '#E3E3E3'
+    Background = '#F9F9F9'; Sidebar = '#59FFFFFF'; SidebarEdge = '#12000000'; Card = '#FFFFFF'; Raised = '#EDEDED'; Line = '#E3E3E3'
     Text = '#1A1A1A'; Secondary = '#616161'; Hover = '#EAEAEA'; Selected = '#E4E4E4'; Track = '#D4D4D4'
     Accent = '#0A7AFF'; Green = '#1F9E45'; Amber = '#C77700'; Grey = '#8E8E8E'
     SwitchOff = '#7A7A7A'; Meter = '#1A1A1A'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#D6D6D6'
     HeroShade = '#CCF9F9F9'; ArtEmpty = '#E8E8E8'; Scroll = '#44000000'; HoverOverlay = '#12000000'
-    Glass = '#B3FFFFFF'; GlassRaised = '#12000000'
+    Glass = '#B3FFFFFF'; GlassRaised = '#12000000'; NavPicked = '#14000000'
 }
 
 $WindowXaml = @'
@@ -144,8 +144,8 @@ $WindowXaml = @'
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
             <Grid Background="Transparent">
-              <Border x:Name="Hover" CornerRadius="12" Background="{{Hover}}" Opacity="0"/>
-              <Border x:Name="Picked" CornerRadius="12" Background="{{Selected}}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="12" Background="{{HoverOverlay}}" Opacity="0"/>
+              <Border x:Name="Picked" CornerRadius="12" Background="{{NavPicked}}" Opacity="0"/>
               <Border Padding="14,10">
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" FontFamily="{StaticResource Icons}"
@@ -458,7 +458,7 @@ $WindowXaml = @'
     </Grid.ColumnDefinitions>
 
     <!-- Sidebar -->
-    <Border Grid.Column="0" Background="{{Sidebar}}" BorderBrush="{{Line}}" BorderThickness="0,0,1,0">
+    <Border Grid.Column="0" Background="{{Sidebar}}" BorderBrush="{{SidebarEdge}}" BorderThickness="0,0,1,0">
       <DockPanel Margin="16,20,16,18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,26">
           <Border Width="40" Height="40" CornerRadius="9" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
@@ -479,7 +479,7 @@ $WindowXaml = @'
       </DockPanel>
     </Border>
 
-    <!-- The content area. On Now Playing, it's filled with the song's colours. -->
+    <!-- The content area. -->
     <Grid x:Name="Content" Grid.Column="1">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto"/>
@@ -889,13 +889,15 @@ function Show-WatchdogWindow {
         Set-TitleBarColor
     }
 
-    # Title bar in the same colours as the window (Windows 11; ignored elsewhere).
+    # Title bar in the same colours as the window (Windows 11; ignored elsewhere): the
+    # colour at the top of the page, so the song's colours run right up to the top.
     function Set-TitleBarColor {
         $handle = (New-Object System.Windows.Interop.WindowInteropHelper($window)).Handle
         if ($handle -eq [IntPtr]::Zero) { return }   # not shown yet
         $dark = [int]$ui.Dark
         [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 20, [ref]$dark, 4)
-        $color = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
+        $color = if ($pageFill) { $pageFill.GradientStops[0].Color }
+        else { [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background) }
         $colorRef = [int]$color.R -bor ([int]$color.G -shl 8) -bor ([int]$color.B -shl 16)
         [void][AppleMusicWatchdog.Dwm]::DwmSetWindowAttribute($handle, 35, [ref]$colorRef, 4)
     }
@@ -1208,17 +1210,19 @@ function Show-WatchdogWindow {
         Update-Display
     }
 
-    # Like Apple Music, the pages are filled with the song's colours: a gradient from
-    # the artwork's main colour at the top to its second colour at the bottom, darker
-    # or lighter to suit the theme. Songs without artwork get the plain background.
-    # The colours fade when they change.
+    # Like Apple Music, the whole window is filled with the song's colours, sidebar
+    # and title bar included: a gradient from the artwork's main colour at the top to
+    # its second colour at the bottom, darker or lighter to suit the theme. Songs
+    # without artwork get the plain background. The colours fade when they change.
     $pageFill = New-Object System.Windows.Media.LinearGradientBrush
     $pageFill.StartPoint = New-Object System.Windows.Point 0, 0
-    $pageFill.EndPoint = New-Object System.Windows.Point 0.35, 1
+    $pageFill.EndPoint = New-Object System.Windows.Point 0, 1
     foreach ($offset in 0, 1) {
         $pageFill.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)), $offset))
     }
-    $ui.Content.Background = $pageFill
+    $ui.Shell.Background = $pageFill
+    # Follows the top colour as it fades.
+    $pageFill.Add_Changed({ Set-TitleBarColor })
     $ui.ArtColors = $null
 
     function Update-PageFill {
