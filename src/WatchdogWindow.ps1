@@ -646,7 +646,7 @@ $WindowXaml = @'
         <ScrollViewer x:Name="PageSettings" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Settings"/>
-            <TextBlock Style="{StaticResource SectionLabel}" Text="When the sound stops"/>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="Sound"/>
             <Border Style="{StaticResource SettingCard}">
               <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
