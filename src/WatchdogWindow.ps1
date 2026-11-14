@@ -498,7 +498,7 @@ $WindowXaml = @'
           <Button x:Name="PlayButton" Style="{StaticResource StepButton}" FontSize="19" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
           <Button x:Name="NextButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
         </StackPanel>
-        <Border Grid.Column="1" MaxWidth="520" Height="56" CornerRadius="14" Background="{{Glass}}"
+        <Border x:Name="Lcd" Grid.Column="1" MaxWidth="520" Height="56" CornerRadius="14" Background="{{Glass}}"
                 BorderBrush="{{Line}}" BorderThickness="1" Margin="24,0,24,0">
           <Grid>
             <Grid.ColumnDefinitions>
@@ -518,14 +518,14 @@ $WindowXaml = @'
                   <ColumnDefinition Width="*"/>
                   <ColumnDefinition Width="34"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="LcdElapsed" FontSize="10.5" Foreground="{{Secondary}}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LcdElapsed" FontSize="10.5" Foreground="{{Secondary}}" VerticalAlignment="Center" Opacity="0"/>
                 <Grid Grid.Column="1" VerticalAlignment="Center" Margin="4,0">
                   <Border Height="3" CornerRadius="1.5" Background="{{Track}}"/>
                   <Border x:Name="LcdProgress" Height="3" CornerRadius="1.5" Background="{{Meter}}" RenderTransformOrigin="0,0.5">
                     <Border.RenderTransform><ScaleTransform ScaleX="0"/></Border.RenderTransform>
                   </Border>
                 </Grid>
-                <TextBlock x:Name="LcdRemaining" Grid.Column="2" FontSize="10.5" Foreground="{{Secondary}}" TextAlignment="Right" VerticalAlignment="Center"/>
+                <TextBlock x:Name="LcdRemaining" Grid.Column="2" FontSize="10.5" Foreground="{{Secondary}}" TextAlignment="Right" VerticalAlignment="Center" Opacity="0"/>
               </Grid>
             </StackPanel>
           </Grid>
@@ -1568,6 +1568,9 @@ function Show-WatchdogWindow {
             Update-Display
         })
 
+    # Like Apple Music, the song display shows the times only under the mouse.
+    $ui.Lcd.Add_MouseEnter({ foreach ($time in $ui.LcdElapsed, $ui.LcdRemaining) { Start-Animation $time ([System.Windows.UIElement]::OpacityProperty) 1 180 } })
+    $ui.Lcd.Add_MouseLeave({ foreach ($time in $ui.LcdElapsed, $ui.LcdRemaining) { Start-Animation $time ([System.Windows.UIElement]::OpacityProperty) 0 300 } })
     $ui.Hero.Add_SizeChanged({
             $ui.Hero.Clip = New-Object System.Windows.Media.RectangleGeometry ((New-Object System.Windows.Rect 0, 0, $ui.Hero.ActualWidth, $ui.Hero.ActualHeight), 24, 24)
         })
