@@ -978,7 +978,6 @@ function Show-WatchdogWindow {
             if ($other -ne $Page) { $other.Visibility = 'Collapsed' }
         }
         $Page.Visibility = 'Visible'
-        Update-PageFill
         $shift = New-Object System.Windows.Media.TranslateTransform 0, 16
         $Page.RenderTransform = $shift
         Start-Animation $Page ([System.Windows.UIElement]::OpacityProperty) 1 260 0
@@ -1208,10 +1207,10 @@ function Show-WatchdogWindow {
         Update-Display
     }
 
-    # Like Apple Music, Now Playing is filled with the song's colours: a gradient from
+    # Like Apple Music, the pages are filled with the song's colours: a gradient from
     # the artwork's main colour at the top to its second colour at the bottom, darker
-    # or lighter to suit the theme. Other pages, and songs without artwork, use the
-    # plain background. The colours fade when they change.
+    # or lighter to suit the theme. Songs without artwork get the plain background.
+    # The colours fade when they change.
     $pageFill = New-Object System.Windows.Media.LinearGradientBrush
     $pageFill.StartPoint = New-Object System.Windows.Point 0, 0
     $pageFill.EndPoint = New-Object System.Windows.Point 0.35, 1
@@ -1223,7 +1222,7 @@ function Show-WatchdogWindow {
 
     function Update-PageFill {
         $plain = [System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)
-        $targets = if ($ui.ArtColors -and $ui.PageNow.Visibility -eq 'Visible') {
+        $targets = if ($ui.ArtColors) {
             ConvertTo-PageColor $ui.ArtColors[0] $ui.Dark
             ConvertTo-PageColor $ui.ArtColors[1] $ui.Dark
         }
