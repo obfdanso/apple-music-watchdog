@@ -115,7 +115,9 @@ $WindowXaml = @'
 
     <Style x:Key="Card" TargetType="Border">
       <Setter Property="Background" Value="{{Card}}"/>
-      <Setter Property="CornerRadius" Value="12"/>
+      <!-- Corners follow Apple's rules: capsules for buttons and fields, and nested
+           shapes concentric with what they sit in. -->
+      <Setter Property="CornerRadius" Value="20"/>
     </Style>
 
     <!-- See-through cards for Now Playing, so the song's colours show through. -->
@@ -142,8 +144,8 @@ $WindowXaml = @'
         <Setter.Value>
           <ControlTemplate TargetType="RadioButton">
             <Grid Background="Transparent">
-              <Border x:Name="Hover" CornerRadius="10" Background="{{Hover}}" Opacity="0"/>
-              <Border x:Name="Picked" CornerRadius="10" Background="{{Selected}}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="12" Background="{{Hover}}" Opacity="0"/>
+              <Border x:Name="Picked" CornerRadius="12" Background="{{Selected}}" Opacity="0"/>
               <Border Padding="14,10">
                 <StackPanel Orientation="Horizontal">
                   <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" FontFamily="{StaticResource Icons}"
@@ -294,7 +296,7 @@ $WindowXaml = @'
           <ControlTemplate TargetType="Button">
             <Grid x:Name="Root" Width="40" Height="36" Background="Transparent" RenderTransformOrigin="0.5,0.5">
               <Grid.RenderTransform><ScaleTransform/></Grid.RenderTransform>
-              <Border x:Name="Hover" CornerRadius="8" Background="{{Selected}}" Opacity="0"/>
+              <Border x:Name="Hover" CornerRadius="18" Background="{{Selected}}" Opacity="0"/>
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
             <ControlTemplate.Triggers>
@@ -343,7 +345,7 @@ $WindowXaml = @'
 
     <Style x:Key="Stepper" TargetType="Border">
       <Setter Property="Background" Value="{{GlassRaised}}"/>
-      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="CornerRadius" Value="20"/>
       <Setter Property="Padding" Value="2"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
@@ -459,7 +461,7 @@ $WindowXaml = @'
     <Border Grid.Column="0" Background="{{Sidebar}}" BorderBrush="{{Line}}" BorderThickness="0,0,1,0">
       <DockPanel Margin="16,20,16,18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,26">
-          <Border Width="40" Height="40" CornerRadius="12" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
+          <Border Width="40" Height="40" CornerRadius="9" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
             <TextBlock Text="&#xE9D9;" FontFamily="{StaticResource Icons}" FontSize="20" Foreground="{{LogoGlyph}}"
                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
@@ -537,7 +539,7 @@ $WindowXaml = @'
         <ScrollViewer x:Name="PageNow" VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Now Playing"/>
-            <Border CornerRadius="16" MinHeight="262" Background="{{Glass}}">
+            <Border CornerRadius="24" MinHeight="262" Background="{{Glass}}">
               <Grid x:Name="Hero">
                 <!-- The artwork, blurred (see New-BlurredArtwork) -->
                 <Border x:Name="HeroBlur" Opacity="0.75"/>
@@ -1568,7 +1570,7 @@ function Show-WatchdogWindow {
         })
 
     $ui.Hero.Add_SizeChanged({
-            $ui.Hero.Clip = New-Object System.Windows.Media.RectangleGeometry ((New-Object System.Windows.Rect 0, 0, $ui.Hero.ActualWidth, $ui.Hero.ActualHeight), 16, 16)
+            $ui.Hero.Clip = New-Object System.Windows.Media.RectangleGeometry ((New-Object System.Windows.Rect 0, 0, $ui.Hero.ActualWidth, $ui.Hero.ActualHeight), 24, 24)
         })
 
     # The tray icon, shown while "Keep running in the tray when closed" is on.
