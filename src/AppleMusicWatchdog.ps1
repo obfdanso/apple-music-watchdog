@@ -99,6 +99,9 @@ if ($PSVersionTable.PSEdition -ne 'Desktop') {
 $AudioProcesses = [string[]]@('AMPLibraryAgent', 'AppleMusic')
 $MaxLogBytes = 1MB
 $SettingsPath = Join-Path $env:LOCALAPPDATA 'AppleMusicWatchdog\settings.json'
+# The recent fixes, newest first, for the window's Fix history.
+$FixHistoryPath = Join-Path $env:LOCALAPPDATA 'AppleMusicWatchdog\fixes.json'
+$MaxFixHistory = 50
 
 # Settings the window can change while the watchdog runs.
 $Settings = @{
@@ -232,6 +235,7 @@ $State = @{
     LastFixWorked = $false                 # whether sound came back after the last fix
     LastFixKind   = ''                     # what the last fix did (see $FixSteps)
     LastFixTitle  = ''                     # the song that went silent
+    LastFixArtist = ''
     LastFixCut    = $false                 # whether Apple Music was paused or stopped during the last fix
     FixKind       = ''                     # what the fix under way is doing
     FailedFixes   = 0                      # fixes in a row that didn't bring the sound back
@@ -248,6 +252,8 @@ $State = @{
     FadeFrom      = -1.0                   # Apple Music's volume before the timer started fading it out
     LastStatus    = ''                     # Apple Music's status at the previous check
     PausedByYou   = $false                 # Apple Music was paused, and not by the watchdog
+    FixHistory    = New-Object System.Collections.ArrayList   # recent fixes, newest first (see Add-FixHistory)
+    HistoryChange = 0                      # goes up whenever FixHistory changes, so the window knows to redraw it
 }
 
 # The ways the watchdog tries to get the sound back, gentlest first. Each time one
@@ -333,12 +339,51 @@ function Get-FixKind($Session) {
     $kind
 }
 
+# The fix history is kept in fixes.json, so it's still there next time.
+function Read-FixHistory {
+    if (-not (Test-Path $FixHistoryPath)) { return }
+    try {
+        # Into a variable first: Windows PowerShell's ConvertFrom-Json passes the whole
+        # list down the pipeline as one item.
+        $entries = Get-Content $FixHistoryPath -Raw | ConvertFrom-Json
+        foreach ($entry in $entries) {
+            [void]$State.FixHistory.Add([pscustomobject]@{
+                    At     = ([DateTimeOffset]::Parse($entry.At, [Globalization.CultureInfo]::InvariantCulture)).LocalDateTime
+                    Kind   = [string]$entry.Kind
+                    Title  = [string]$entry.Title
+                    Artist = [string]$entry.Artist
+                    Result = [string]$entry.Result
+                })
+        }
+    }
+    catch { Add-LogLine "Couldn't read the fix history, so it starts empty: $($_.Exception.Message)" }
+}
+
+function Save-FixHistory {
+    $State.HistoryChange++
+    try {
+        $rows = foreach ($entry in $State.FixHistory) {
+            [ordered]@{ At = $entry.At.ToString('o'); Kind = $entry.Kind; Title = $entry.Title; Artist = $entry.Artist; Result = $entry.Result }
+        }
+        ConvertTo-Json -InputObject @($rows) | Set-Content -Path $FixHistoryPath -Encoding UTF8
+    }
+    catch { Write-Verbose "Couldn't save the fix history: $($_.Exception.Message)" }
+}
+
+# Result is Worked, Failed or Paused (Apple Music was paused during the fix).
+function Add-FixHistory([datetime]$At, [string]$Kind, [string]$Result) {
+    $State.FixHistory.Insert(0, [pscustomobject]@{ At = $At; Kind = $Kind; Title = $State.LastFixTitle; Artist = $State.LastFixArtist; Result = $Result })
+    while ($State.FixHistory.Count -gt $MaxFixHistory) { $State.FixHistory.RemoveAt($State.FixHistory.Count - 1) }
+    Save-FixHistory
+}
+
 # Starts a fix. The rest of it happens over the next few calls of Invoke-WatchdogStep.
 function Start-Fix($Session, [string]$Kind, [datetime]$Now, [string]$Reason) {
     $State.Fixes++
     $State.FixKind = $Kind
     $State.FixSession = $Session
     $State.LastFixTitle = $State.Title
+    $State.LastFixArtist = $State.Artist
     $State.SilentSince = $null
     $title = if ($State.Title) { $State.Title } else { '?' }
     $doing = switch ($Kind) {
@@ -389,6 +434,7 @@ function Complete-Fix([datetime]$Now, [bool]$Worked, [switch]$Abandoned) {
     $State.LastFixWorked = $Worked
     $State.LastFixCut = [bool]$Abandoned
     $State.LastFixKind = $State.FixKind
+    Add-FixHistory $Now $State.FixKind $(if ($Worked) { 'Worked' } elseif ($Abandoned) { 'Paused' } else { 'Failed' })
     if ($Worked) { $State.FailedFixes = 0; $State.RestartTried = $false } elseif (-not $Abandoned) { $State.FailedFixes++ }
     $song = if ($State.LastFixTitle) { " ($($State.LastFixTitle))" } else { '' }
     if ($Worked -and $State.FixKind -ne 'PausePlay') {
@@ -574,6 +620,10 @@ function Invoke-WatchdogStep {
                     # The sound came back a little after the last fix was checked.
                     $State.LastFixWorked = $true
                     Add-LogLine ('Sound came back {0:N0}s after the fix' -f ($now - $State.LastFixAt).TotalSeconds)
+                    if ($State.FixHistory.Count -and $State.FixHistory[0].At -eq $State.LastFixAt) {
+                        $State.FixHistory[0].Result = 'Worked'
+                        Save-FixHistory
+                    }
                 }
                 if ($audible) { $State.FailedFixes = 0; $State.RestartTried = $false }
 
@@ -619,6 +669,7 @@ function Invoke-WatchdogStep {
 }
 
 $State.Manager = Get-MediaManager
+Read-FixHistory
 
 if ($Check) {
     foreach ($i in 1..5) {
