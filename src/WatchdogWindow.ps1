@@ -426,104 +426,6 @@ $WindowXaml = @'
       <Setter Property="Margin" Value="0,0,8,0"/>
     </Style>
 
-    <!-- Search box above the font list, with a placeholder while it's empty. -->
-    <Style x:Key="SearchBox" TargetType="TextBox">
-      <Setter Property="Foreground" Value="{{Text}}"/>
-      <Setter Property="CaretBrush" Value="{{Text}}"/>
-      <Setter Property="FontSize" Value="14"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="TextBox">
-            <Border CornerRadius="10" Background="{{Raised}}" Padding="12,8">
-              <Grid>
-                <TextBlock x:Name="Placeholder" Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                           Foreground="{{Secondary}}" Margin="2,0" Visibility="Collapsed" IsHitTestVisible="False"/>
-                <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
-              </Grid>
-            </Border>
-            <ControlTemplate.Triggers>
-              <Trigger Property="Text" Value="">
-                <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
-              </Trigger>
-            </ControlTemplate.Triggers>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
-    <!-- The list of the user's fonts, each shown in its own font. -->
-    <Style x:Key="FontList" TargetType="ListBox">
-      <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="BorderThickness" Value="0"/>
-      <Setter Property="Foreground" Value="{{Text}}"/>
-      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
-      <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ListBox">
-            <ScrollViewer Focusable="False" Padding="0,0,6,0" CanContentScroll="True">
-              <ItemsPresenter/>
-            </ScrollViewer>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Setter Property="ItemContainerStyle">
-        <Setter.Value>
-          <Style TargetType="ListBoxItem">
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-              <Setter.Value>
-                <ControlTemplate TargetType="ListBoxItem">
-                  <Grid Background="Transparent">
-                    <Border x:Name="Hover" CornerRadius="8" Background="{{Hover}}" Opacity="0"/>
-                    <Border x:Name="Picked" CornerRadius="8" Background="{{Selected}}" Opacity="0"/>
-                    <Border x:Name="Marker" Width="3" Height="16" CornerRadius="1.5" Background="{{Accent}}" HorizontalAlignment="Left" Opacity="0"/>
-                    <ContentPresenter Margin="14,7"/>
-                  </Grid>
-                  <ControlTemplate.Triggers>
-                    <Trigger Property="IsMouseOver" Value="True">
-                      <Trigger.EnterActions>
-                        <BeginStoryboard>
-                          <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.12"/>
-                          </Storyboard>
-                        </BeginStoryboard>
-                      </Trigger.EnterActions>
-                      <Trigger.ExitActions>
-                        <BeginStoryboard>
-                          <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="Hover" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2"/>
-                          </Storyboard>
-                        </BeginStoryboard>
-                      </Trigger.ExitActions>
-                    </Trigger>
-                    <Trigger Property="IsSelected" Value="True">
-                      <Trigger.EnterActions>
-                        <BeginStoryboard>
-                          <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="Picked" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18"/>
-                            <DoubleAnimation Storyboard.TargetName="Marker" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18"/>
-                          </Storyboard>
-                        </BeginStoryboard>
-                      </Trigger.EnterActions>
-                      <Trigger.ExitActions>
-                        <BeginStoryboard>
-                          <Storyboard>
-                            <DoubleAnimation Storyboard.TargetName="Picked" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
-                            <DoubleAnimation Storyboard.TargetName="Marker" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18"/>
-                          </Storyboard>
-                        </BeginStoryboard>
-                      </Trigger.ExitActions>
-                    </Trigger>
-                  </ControlTemplate.Triggers>
-                </ControlTemplate>
-              </Setter.Value>
-            </Setter>
-          </Style>
-        </Setter.Value>
-      </Setter>
-    </Style>
-
     <Style TargetType="ScrollBar">
       <Setter Property="Width" Value="8"/>
       <Setter Property="MinWidth" Value="8"/>
@@ -900,26 +802,6 @@ $WindowXaml = @'
                   <Button x:Name="ThemeDark" Style="{StaticResource Chip}" Content="Dark" Margin="0"/>
                 </StackPanel>
               </Grid>
-            </Border>
-            <Border Style="{StaticResource SettingCard}">
-              <StackPanel>
-                <Grid>
-                  <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                  <StackPanel VerticalAlignment="Center" Margin="0,0,24,0">
-                    <TextBlock Style="{StaticResource RowTitle}" Text="Font"/>
-                    <TextBlock Style="{StaticResource RowHint}" Text="The font this window uses."/>
-                  </StackPanel>
-                  <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="FontDefault" Style="{StaticResource Chip}" Content="Default"/>
-                    <Button x:Name="FontSystem" Style="{StaticResource Chip}" Content="System font" Margin="0"/>
-                  </StackPanel>
-                </Grid>
-                <TextBlock x:Name="SystemFontNote" Style="{StaticResource RowHint}" Margin="0,10,0,0" Visibility="Collapsed"/>
-                <StackPanel x:Name="FontPicker" Margin="0,14,0,2" Visibility="Collapsed">
-                  <TextBox x:Name="FontSearch" Style="{StaticResource SearchBox}" Tag="Search your fonts"/>
-                  <ListBox x:Name="FontList" Style="{StaticResource FontList}" Height="220" Margin="0,8,0,0"/>
-                </StackPanel>
-              </StackPanel>
             </Border>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Window" Margin="2,22,0,10"/>
             <Border Style="{StaticResource SettingCard}">
@@ -1542,22 +1424,6 @@ function Show-WatchdogWindow {
             Set-AnimatedBrush $chip 'Foreground' $(if ($on) { '#FFFFFF' } else { $colors.Text })
         }
 
-        # Font
-        foreach ($choice in 'Default', 'System') {
-            $chip = $ui["Font$choice"]
-            $on = $Settings.Font -eq $choice
-            Set-AnimatedBrush $chip 'Background' $(if ($on) { $colors.Accent } else { $colors.Raised })
-            Set-AnimatedBrush $chip 'Foreground' $(if ($on) { '#FFFFFF' } else { $colors.Text })
-        }
-        $ui.FontPicker.Visibility = if ($Settings.Font -eq 'System') { 'Visible' } else { 'Collapsed' }
-        # The default font is used until a font from the list is picked, or if the one
-        # picked has since been uninstalled.
-        $missing = $Settings.Font -eq 'System' -and -not ($Settings.SystemFont -and $fonts.Contains($Settings.SystemFont))
-        $ui.SystemFontNote.Visibility = if ($missing) { 'Visible' } else { 'Collapsed' }
-        if ($missing) {
-            Set-Text $ui.SystemFontNote $(if ($Settings.SystemFont) { '{0} isn''t installed any more, so the default font is used. Pick another one below.' -f $Settings.SystemFont } else { 'Pick a font below. Until you do, the default font is used.' })
-        }
-
         # Timer
         $minutes = Get-TimerLength
         Set-Text $ui.HoursValue ('{0} hr' -f $Settings.StopAfterHours)
@@ -1594,47 +1460,6 @@ function Show-WatchdogWindow {
         }
     }
 
-    # Fonts: the default (Segoe UI Variable) or one of the user's fonts.
-    $fonts = Get-FontChoice
-
-    function Set-WindowFont {
-        $body = [System.Windows.Media.FontFamily]::new('Segoe UI Variable Text, Segoe UI')
-        $display = [System.Windows.Media.FontFamily]::new('Segoe UI Variable Display, Segoe UI')
-        if ($Settings.Font -eq 'System' -and $Settings.SystemFont -and $fonts.Contains($Settings.SystemFont)) {
-            $body = $display = $fonts[$Settings.SystemFont]
-        }
-        $window.FontFamily = $body
-        # Unwrapped: WPF rejects PowerShell's wrapper object here.
-        $window.Resources['Display'] = $display.psobject.BaseObject
-    }
-
-    # Fills the font list the first time it's needed, each name in its own font.
-    function Show-FontList {
-        if ($ui.FontList.Items.Count) { return }
-        $current = $null
-        foreach ($name in $fonts.Keys) {
-            $item = New-Object System.Windows.Controls.TextBlock
-            $item.Text = $name
-            $item.Tag = $name
-            $item.FontFamily = $fonts[$name]
-            $item.FontSize = 15
-            [void]$ui.FontList.Items.Add($item)
-            if ($name -eq $Settings.SystemFont) { $current = $item }
-        }
-        if ($current) {
-            $ui.FontList.SelectedItem = $current
-            $ui.FontList.ScrollIntoView($current)
-        }
-    }
-
-    function Set-FontChoice([string]$Choice) {
-        $Settings.Font = $Choice
-        Save-WatchdogSetting
-        if ($Choice -eq 'System') { Show-FontList }
-        Set-WindowFont
-        Update-Display
-    }
-
     function Set-ThemeChoice([string]$Choice) {
         $Settings.Theme = $Choice
         Save-WatchdogSetting
@@ -1645,20 +1470,6 @@ function Show-WatchdogWindow {
     $ui.ThemeSystem.Add_Click({ Set-ThemeChoice 'System' })
     $ui.ThemeLight.Add_Click({ Set-ThemeChoice 'Light' })
     $ui.ThemeDark.Add_Click({ Set-ThemeChoice 'Dark' })
-
-    $ui.FontDefault.Add_Click({ Set-FontChoice 'Default' })
-    $ui.FontSystem.Add_Click({ Set-FontChoice 'System' })
-    $ui.FontList.Add_SelectionChanged({
-            if (-not $ui.FontList.SelectedItem) { return }
-            $Settings.SystemFont = [string]$ui.FontList.SelectedItem.Tag
-            Set-FontChoice 'System'
-        })
-    $ui.FontSearch.Add_TextChanged({
-            $pattern = '*{0}*' -f $ui.FontSearch.Text
-            $ui.FontList.Items.Filter = [Predicate[object]] { param($item) $item.Tag -like $pattern }.GetNewClosure()
-        })
-    if ($Settings.Font -eq 'System') { Show-FontList }
-    Set-WindowFont
 
     # Navigation
     $pages = @{ NavNow = $ui.PageNow; NavSettings = $ui.PageSettings }
@@ -1892,27 +1703,6 @@ function Show-WatchdogWindow {
         $tray.Dispose()
         $showEvent.Dispose()
     }
-}
-
-# The fonts the window can use, by name: everything installed for all users, fonts
-# installed just for this user, and any font files in the project's fonts folder
-# (so a font can be used without installing it). Symbol and icon fonts are left out.
-function Get-FontChoice {
-    $found = @{}
-    foreach ($family in [System.Windows.Media.Fonts]::SystemFontFamilies) { $found[$family.Source] = $family }
-    $folders = (Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts'), (Join-Path (Split-Path $PSScriptRoot) 'fonts')
-    foreach ($folder in $folders) {
-        if (-not (Test-Path $folder)) { continue }
-        $uri = New-Object System.Uri ((Resolve-Path $folder).ProviderPath.TrimEnd('\') + '\')
-        foreach ($family in [System.Windows.Media.Fonts]::GetFontFamilies($uri)) {
-            $found[($family.Source -split '#')[-1]] = $family
-        }
-    }
-    $choices = [ordered]@{}
-    foreach ($name in ($found.Keys | Where-Object { $_ -notmatch 'Assets|Icons|Wingdings|Webdings|Symbol|Marlett|Emoji|MT Extra|HoloLens' } | Sort-Object)) {
-        $choices[$name] = $found[$name]
-    }
-    $choices
 }
 
 # The artwork's two main colours, for filling Now Playing: the most common colour,
