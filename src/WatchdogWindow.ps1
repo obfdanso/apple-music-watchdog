@@ -630,25 +630,28 @@ $WindowXaml = @'
                 </StackPanel>
               </Border>
             </UniformGrid>
+            <!-- Fix history: what the watchdog did, newest first (rows from New-HistoryRow). -->
             <Border Style="{StaticResource GlassCard}" Margin="0,10,0,0" Padding="20,14">
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto"/>
-                  <ColumnDefinition Width="*"/>
-                  <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Border Width="44" Height="44" CornerRadius="12" Background="{{GlassRaised}}">
-                  <TextBlock Text="&#xE90F;" FontFamily="{StaticResource Icons}" FontSize="20"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-                <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
-                  <TextBlock x:Name="LastFixLabel" Text="Last fix" FontSize="13" Foreground="{{Secondary}}"/>
-                  <TextBlock x:Name="LastFixText" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
-                </StackPanel>
-                <Border x:Name="LastFixChip" Grid.Column="2" CornerRadius="14" Background="{{GlassRaised}}" Padding="12,5" VerticalAlignment="Center">
-                  <TextBlock x:Name="LastFixResult" FontSize="13"/>
-                </Border>
-              </Grid>
+              <StackPanel>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <Border Width="44" Height="44" CornerRadius="12" Background="{{GlassRaised}}">
+                    <TextBlock Text="&#xE90F;" FontFamily="{StaticResource Icons}" FontSize="20"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
+                    <TextBlock Text="Fix history" FontFamily="{DynamicResource Display}" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="HistorySummary" FontSize="13" Foreground="{{Secondary}}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+                  </StackPanel>
+                  <Button x:Name="HistoryClear" Grid.Column="2" Style="{StaticResource Chip}" Content="Clear" Margin="0" VerticalAlignment="Center"/>
+                </Grid>
+                <StackPanel x:Name="HistoryList" Margin="0,8,0,0"/>
+                <Button x:Name="HistoryMore" Style="{StaticResource Chip}" HorizontalAlignment="Left" Margin="60,8,0,2"/>
+              </StackPanel>
             </Border>
             <Border Style="{StaticResource GlassCard}" Margin="0,10,0,0" Padding="20,14">
               <Grid>
@@ -1351,7 +1354,7 @@ function Show-WatchdogWindow {
         Start-Animation $ui.HeroBlur ([System.Windows.UIElement]::OpacityProperty) 0.75 700 0
     }
 
-    # What each kind of fix did, for the "Last fix" card.
+    # What each kind of fix did, for the fix history.
     $fixNames = @{
         PausePlay   = 'Paused and played'
         RestartSong = 'Restarted the song'
@@ -1364,6 +1367,82 @@ function Show-WatchdogWindow {
     function Format-Ago([datetime]$Time) {
         $minutes = [int][Math]::Floor(((Get-Date) - $Time).TotalMinutes)
         if ($minutes -lt 1) { 'just now' } elseif ($minutes -lt 60) { "$minutes min ago" } else { '{0} hr ago' -f [int][Math]::Floor($minutes / 60) }
+    }
+
+    # The icon for each kind of fix, and how each result reads, with its colour.
+    $fixIcons = @{ PausePlay = 0xE769; RestartSong = 0xE72C; NextSong = 0xE893; RestartApp = 0xE895; Play = 0xE768 }
+    $fixResults = @{
+        Worked = 'Sound came back', 'Green'
+        Failed = 'Still silent', 'Amber'
+        Paused = 'Paused during the fix', 'Secondary'
+    }
+    $ui.HistoryShown = 5   # rows shown until "Show all"
+
+    # One row of the fix history. Built from XAML so its colours follow the theme.
+    function New-HistoryRow($Entry, [bool]$First) {
+        $what = $fixNames[$Entry.Kind]
+        if (-not $what) { $what = 'Fixed' }
+        $song = if ($Entry.Title) { [string][char]0x201C + $Entry.Title + [char]0x201D } else { 'Unknown song' }
+        if ($Entry.Artist) { $song = '{0} {1} {2}' -f $song, [char]0x00B7, $Entry.Artist }
+        $when = if ($Entry.At.Date -eq (Get-Date).Date) { '{0:HH:mm} {1} {2}' -f $Entry.At, [char]0x00B7, (Format-Ago $Entry.At) }
+        else { $Entry.At.ToString('ddd d MMM, HH:mm') }
+        $result = $fixResults[$Entry.Result]
+        if (-not $result) { $result = $fixResults.Failed }
+        $glyph = $fixIcons[$Entry.Kind]
+        if (-not $glyph) { $glyph = 0xE90F }
+        $text = @{}
+        foreach ($pair in @{ What = $what; Song = $song; When = $when; Result = $result[0] }.GetEnumerator()) {
+            $text[$pair.Key] = [System.Security.SecurityElement]::Escape([string]$pair.Value)
+        }
+        $line = if ($First) { 'Collapsed' } else { 'Visible' }
+        $xaml = @"
+<Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+  <Border Height="1" VerticalAlignment="Top" Background="{DynamicResource c_HoverOverlay}" Margin="60,0,0,0" Visibility="$line"/>
+  <Grid Margin="0,10">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="60"/>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="Auto"/>
+    </Grid.ColumnDefinitions>
+    <Border Width="32" Height="32" CornerRadius="10" Background="{DynamicResource c_GlassRaised}" HorizontalAlignment="Left" Margin="6,0,0,0">
+      <TextBlock Text="&#x$('{0:X4}' -f $glyph);" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="14"
+                 Foreground="{DynamicResource c_Text}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+    </Border>
+    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0">
+      <TextBlock Text="$($text.What)" FontSize="14.5" FontWeight="SemiBold" Foreground="{DynamicResource c_Text}" TextTrimming="CharacterEllipsis"/>
+      <TextBlock Text="$($text.Song)" FontSize="13" Foreground="{DynamicResource c_Secondary}" TextTrimming="CharacterEllipsis" Margin="0,1,0,0"/>
+    </StackPanel>
+    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+      <Border CornerRadius="11" Background="{DynamicResource c_GlassRaised}" Padding="10,3" HorizontalAlignment="Right">
+        <TextBlock Text="$($text.Result)" FontSize="12.5" Foreground="{DynamicResource c_$($result[1])}"/>
+      </Border>
+      <TextBlock Text="$($text.When)" FontSize="12" Foreground="{DynamicResource c_Secondary}" HorizontalAlignment="Right" Margin="0,4,2,0"/>
+    </StackPanel>
+  </Grid>
+</Grid>
+"@
+        [Windows.Markup.XamlReader]::Parse($xaml)
+    }
+
+    # Redraws the fix history when it changes, and once a minute for the times.
+    function Update-History {
+        $history = $State.FixHistory
+        $key = '{0}|{1}|{2:yyyyMMddHHmm}' -f $State.HistoryChange, $ui.HistoryShown, (Get-Date)
+        if ($key -eq $ui.HistoryKey) { return }
+        $ui.HistoryKey = $key
+        $count = $history.Count
+        $worked = @($history | Where-Object { $_.Result -eq 'Worked' }).Count
+        $summary = if (-not $count) { 'None yet. Fixes will show up here.' }
+        elseif ($count -eq 1) { if ($worked) { '1 fix, and the sound came back' } else { '1 fix' } }
+        else { '{0} fixes, {1} brought the sound back' -f $count, $worked }
+        Set-Text $ui.HistorySummary $summary
+        $ui.HistoryList.Children.Clear()
+        $shown = [Math]::Min($count, $ui.HistoryShown)
+        for ($i = 0; $i -lt $shown; $i++) { [void]$ui.HistoryList.Children.Add((New-HistoryRow $history[$i] ($i -eq 0))) }
+        $ui.HistoryList.Visibility = if ($count) { 'Visible' } else { 'Collapsed' }
+        $ui.HistoryClear.Visibility = if ($count) { 'Visible' } else { 'Collapsed' }
+        $ui.HistoryMore.Visibility = if ($count -gt 5) { 'Visible' } else { 'Collapsed' }
+        $ui.HistoryMore.Content = if ($ui.HistoryShown -gt 5) { 'Show less' } else { "Show all $count" }
     }
 
     function Update-Display {
@@ -1465,25 +1544,7 @@ function Show-WatchdogWindow {
         Set-Text $ui.StatFixes $State.Fixes -Fade
         Set-Text $ui.StatFixesNote $(if ($State.Fixes) { 'Since {0:HH:mm}' -f $ui.OpenedAt } else { 'None yet' })
 
-        # Last fix: what it did, to which song, and whether the sound came back.
-        if ($State.LastFixAt) {
-            Set-Text $ui.LastFixLabel ('Last fix, {0} at {1:HH:mm}' -f (Format-Ago $State.LastFixAt), $State.LastFixAt)
-            $what = $fixNames[$State.LastFixKind]
-            if (-not $what) { $what = 'Fixed' }
-            if ($State.LastFixTitle) { $what = '{0} during {1}{2}{3}' -f $what, [char]0x201C, $State.LastFixTitle, [char]0x201D }
-            Set-Text $ui.LastFixText $what -Fade
-            $result, $color = if ($State.LastFixWorked) { 'Sound came back', $colors.Green }
-            elseif ($State.LastFixCut) { 'Paused during the fix', $colors.Secondary }
-            else { 'Still silent', $colors.Amber }
-            Set-Text $ui.LastFixResult $result -Fade
-            Set-AnimatedBrush $ui.LastFixResult 'Foreground' $color
-            $ui.LastFixChip.Visibility = 'Visible'
-        }
-        else {
-            Set-Text $ui.LastFixLabel 'Last fix'
-            Set-Text $ui.LastFixText 'None yet. Fixes will show up here.'
-            $ui.LastFixChip.Visibility = 'Collapsed'
-        }
+        Update-History
         Set-Text $ui.StatUptime $(if ($State.Active) { Format-Span ($now - $ui.ActiveSince) } else { 'Off' })
         Set-Text $ui.StatTimer $(if ($ui.Deadline) { Format-Span ($ui.Deadline - $now) } elseif ($ui.EndedAt) { 'Done' } else { 'Off' })
 
@@ -1659,6 +1720,16 @@ function Show-WatchdogWindow {
         $ui["Preset$preset"].Tag = $preset
         $ui["Preset$preset"].Add_Click({ param($source) Set-TimerLength ([int]$source.Tag) })
     }
+    $ui.HistoryMore.Add_Click({
+            $ui.HistoryShown = if ($ui.HistoryShown -gt 5) { 5 } else { $MaxFixHistory }
+            Update-History
+        })
+    $ui.HistoryClear.Add_Click({
+            $State.FixHistory.Clear()
+            Save-FixHistory
+            Add-LogLine 'Cleared the fix history'
+            Update-History
+        })
     $ui.PreviousButton.Add_Click({ Invoke-MediaButton 'Previous' })
     $ui.PlayButton.Add_Click({ Invoke-MediaButton 'PlayPause' })
     $ui.NextButton.Add_Click({ Invoke-MediaButton 'Next' })
