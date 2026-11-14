@@ -561,8 +561,11 @@ $WindowXaml = @'
             </StackPanel>
           </Grid>
         </Border>
-        <Button x:Name="ToggleWatch" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
-                Style="{StaticResource Pill}" Content="Stop Watching"/>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+          <Button x:Name="MiniButton" Style="{StaticResource StepButton}" FontSize="17" Content="&#xEE49;"
+                  AutomationProperties.Name="Mini player" Margin="0,0,10,0"/>
+          <Button x:Name="ToggleWatch" VerticalAlignment="Center" Style="{StaticResource Pill}" Content="Stop Watching"/>
+        </StackPanel>
       </Grid>
 
       <Grid Grid.Row="1">
@@ -888,6 +891,14 @@ $WindowXaml = @'
                   <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="2"/></Border>
                   <TextBlock Style="{StaticResource KeyLabel}" Text="Now Playing or Settings"/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="M"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Mini player"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="Esc"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Back to the full window"/>
+                </StackPanel>
               </UniformGrid>
             </Border>
           </StackPanel>
@@ -896,6 +907,77 @@ $WindowXaml = @'
 
       </Grid>
     </Grid>
+  </Grid>
+</Window>
+'@
+
+# The mini player: a small window that stays on top, with the artwork, the song,
+# Apple Music's controls and whether the watchdog is watching. It shares the main
+# window's colours and styles (so styles here are DynamicResource).
+$MiniXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Apple Music Watchdog" Width="428" Height="160" WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent" ResizeMode="NoResize" Topmost="True" ShowInTaskbar="True"
+        Foreground="{{Text}}" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+  <!-- The margin leaves room for the shadow. -->
+  <Grid x:Name="MiniRoot" Margin="16" Opacity="0">
+    <Border CornerRadius="22" Background="{{Background}}">
+      <Border.Effect>
+        <DropShadowEffect BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.4" Color="#000000"/>
+      </Border.Effect>
+    </Border>
+    <!-- Filled with the song's colours, like the main window (see Update-PageFill). -->
+    <Border x:Name="MiniCard" CornerRadius="22" BorderBrush="{{GlassRaised}}" BorderThickness="1">
+      <Grid>
+        <Border x:Name="MiniBlur" CornerRadius="22" Opacity="0.35"/>
+        <Grid Margin="14">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Border x:Name="MiniArt" Width="100" Height="100" CornerRadius="12" Background="{{ArtEmpty}}">
+            <TextBlock x:Name="MiniArtEmpty" Text="&#xE8D6;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="30"
+                       Foreground="{{Secondary}}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <Grid Grid.Column="1" Margin="14,0,0,0">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock x:Name="MiniTitle" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Margin="0,0,30,0"/>
+            <TextBlock x:Name="MiniArtist" Grid.Row="1" FontSize="13" Foreground="{{Secondary}}" TextTrimming="CharacterEllipsis" Margin="0,1,30,0"/>
+            <Grid Grid.Row="2" VerticalAlignment="Center" Margin="0,0,2,0">
+              <Border Height="3" CornerRadius="1.5" Background="{{Track}}"/>
+              <Border x:Name="MiniProgress" Height="3" CornerRadius="1.5" Background="{{Meter}}" RenderTransformOrigin="0,0.5">
+                <Border.RenderTransform><ScaleTransform ScaleX="0"/></Border.RenderTransform>
+              </Border>
+            </Grid>
+            <Grid Grid.Row="3">
+              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Button x:Name="MiniWatch" Style="{DynamicResource Pill}" Padding="11,6" FontSize="12.5"
+                      HorizontalAlignment="Left" VerticalAlignment="Center" AutomationProperties.Name="Start or stop watching">
+                <StackPanel Orientation="Horizontal">
+                  <Ellipse x:Name="MiniDot" Width="8" Height="8" Fill="{{Grey}}" VerticalAlignment="Center"/>
+                  <TextBlock x:Name="MiniWatchText" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,-8,0">
+                <Button x:Name="MiniPrevious" Style="{DynamicResource StepButton}" FontSize="14" Content="&#xF8AC;" AutomationProperties.Name="Previous"/>
+                <Button x:Name="MiniPlay" Style="{DynamicResource StepButton}" FontSize="18" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
+                <Button x:Name="MiniNext" Style="{DynamicResource StepButton}" FontSize="14" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
+              </StackPanel>
+            </Grid>
+          </Grid>
+        </Grid>
+        <!-- Back to the full window: shows when the mouse is over the mini player. -->
+        <Button x:Name="MiniExpand" Style="{DynamicResource StepButton}" FontSize="12" Content="&#xE740;" Opacity="0"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" AutomationProperties.Name="Full window"/>
+      </Grid>
+    </Border>
   </Grid>
 </Window>
 '@
@@ -914,6 +996,17 @@ function Show-WatchdogWindow {
         $name = $match.Groups[1].Value
         $ui[$name] = $window.FindName($name)
     }
+    $miniXamlText = $MiniXaml
+    foreach ($key in $DarkColors.Keys) { $miniXamlText = $miniXamlText.Replace("{{$key}}", "{DynamicResource c_$key}") }
+    $mini = [Windows.Markup.XamlReader]::Parse($miniXamlText)
+    # The same resources as the main window: its styles, and its colours as they change.
+    $mini.Resources = $window.Resources
+    foreach ($match in [regex]::Matches($miniXamlText, 'x:Name="(\w+)"')) {
+        $name = $match.Groups[1].Value
+        $ui[$name] = $mini.FindName($name)
+    }
+    $ui.MiniMode = $false
+
     $colors = @{}   # the colours in use, by name, as #RRGGBB
     $brush = @{}    # the shared brushes, by name
 
@@ -982,6 +1075,7 @@ function Show-WatchdogWindow {
     $ui.IconDark = Test-DarkTaskbar
     $iconData = New-WatchdogIconData $ui.IconDark
     $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.IO.MemoryStream (, $iconData)))
+    $mini.Icon = $window.Icon
 
     # When the taskbar switches between light and dark, so does the icon: on the
     # window, in the tray and on the shortcuts.
@@ -989,6 +1083,7 @@ function Show-WatchdogWindow {
         $ui.IconDark = Test-DarkTaskbar
         $data = New-WatchdogIconData $ui.IconDark
         $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.IO.MemoryStream (, $data)))
+        $mini.Icon = $window.Icon
         $old = $tray.Icon
         $tray.Icon = New-Object System.Drawing.Icon ((New-Object System.IO.MemoryStream (, $data))), ([System.Windows.Forms.SystemInformation]::SmallIconSize)
         if ($old) { $old.Dispose() }
@@ -1293,6 +1388,7 @@ function Show-WatchdogWindow {
         $pageFill.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.ColorConverter]::ConvertFromString($colors.Background)), $offset))
     }
     $ui.Shell.Background = $pageFill
+    $ui.MiniCard.Background = $pageFill
     # Follows the top colour as it fades.
     $pageFill.Add_Changed({ Set-TitleBarColor })
     $ui.ArtColors = $null
@@ -1326,7 +1422,7 @@ function Show-WatchdogWindow {
             catch { Write-Verbose "Couldn't load the artwork: $($_.Exception.Message)" }
         }
         if ($image) {
-            foreach ($target in $ui.ArtSmall, $ui.ArtBig) {
+            foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.MiniArt) {
                 $fill = New-Object System.Windows.Media.ImageBrush $image
                 $fill.Stretch = 'UniformToFill'
                 $target.Background = $fill
@@ -1334,21 +1430,26 @@ function Show-WatchdogWindow {
             $blurred = New-Object System.Windows.Media.ImageBrush (New-BlurredArtwork $image)
             $blurred.Stretch = 'UniformToFill'
             $ui.HeroBlur.Background = $blurred
+            $ui.MiniBlur.Background = $blurred
             $ui.ArtSmallEmpty.Visibility = 'Collapsed'
             $ui.ArtBigEmpty.Visibility = 'Collapsed'
+            $ui.MiniArtEmpty.Visibility = 'Collapsed'
             $ui.ArtColors = try { Get-ArtworkPalette $image } catch { $null }
         }
         else {
             # By name, so it follows the theme when that changes.
             $ui.ArtSmall.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, 'c_ArtEmpty')
             $ui.ArtBig.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, 'c_ArtEmpty')
+            $ui.MiniArt.SetResourceReference([System.Windows.Controls.Border]::BackgroundProperty, 'c_ArtEmpty')
             $ui.HeroBlur.Background = $null
+            $ui.MiniBlur.Background = $null
             $ui.ArtSmallEmpty.Visibility = 'Visible'
             $ui.ArtBigEmpty.Visibility = 'Visible'
+            $ui.MiniArtEmpty.Visibility = 'Visible'
             $ui.ArtColors = $null
         }
         Update-PageFill
-        foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.HeroTitle, $ui.HeroArtist, $ui.LcdTitle, $ui.LcdArtist) {
+        foreach ($target in $ui.ArtSmall, $ui.ArtBig, $ui.HeroTitle, $ui.HeroArtist, $ui.LcdTitle, $ui.LcdArtist, $ui.MiniArt, $ui.MiniTitle, $ui.MiniArtist) {
             Start-Animation $target ([System.Windows.UIElement]::OpacityProperty) 1 400 0
         }
         Start-Animation $ui.HeroBlur ([System.Windows.UIElement]::OpacityProperty) 0.75 700 0
@@ -1456,6 +1557,8 @@ function Show-WatchdogWindow {
         Set-Text $ui.LcdArtist $State.Artist
         Set-Text $ui.HeroTitle $title
         Set-Text $ui.HeroArtist $(if ($hasSong) { $State.Artist } else { 'Play something in Apple Music' })
+        Set-Text $ui.MiniTitle $title
+        Set-Text $ui.MiniArtist $ui.HeroArtist.Text
         Set-Text $ui.HeroState $State.Status.ToUpperInvariant() -Fade
         # How far into the song: Apple Music's last report, moved on by the time since.
         if ($State.Duration -gt 0) {
@@ -1464,21 +1567,25 @@ function Show-WatchdogWindow {
             # 0.0, not 0: with a whole number, PowerShell picks the whole-number Max and rounds.
             $position = [Math]::Min($State.Duration, [Math]::Max(0.0, $position))
             Set-Meter $ui.LcdProgress ($position / $State.Duration)
+            Set-Meter $ui.MiniProgress ($position / $State.Duration)
             Set-Text $ui.LcdElapsed (Format-SongTime $position)
             Set-Text $ui.LcdRemaining ('-' + (Format-SongTime ($State.Duration - $position)))
         }
         else {
             Set-Meter $ui.LcdProgress 0
+            Set-Meter $ui.MiniProgress 0
             Set-Text $ui.LcdElapsed ''
             Set-Text $ui.LcdRemaining ''
         }
         Update-Route
         $wave.Playing = $State.Status -eq 'Playing'
         $hasApp = $State.Status -ne 'Not running'
-        foreach ($button in $ui.PreviousButton, $ui.PlayButton, $ui.NextButton) { $button.IsEnabled = $hasApp }
+        foreach ($button in $ui.PreviousButton, $ui.PlayButton, $ui.NextButton, $ui.MiniPrevious, $ui.MiniPlay, $ui.MiniNext) { $button.IsEnabled = $hasApp }
         $playing = $State.Status -eq 'Playing'
-        $ui.PlayButton.Content = [string][char]$(if ($playing) { 0xF8AE } else { 0xF5B0 })
-        [System.Windows.Automation.AutomationProperties]::SetName($ui.PlayButton, $(if ($playing) { 'Pause' } else { 'Play' }))
+        foreach ($button in $ui.PlayButton, $ui.MiniPlay) {
+            $button.Content = [string][char]$(if ($playing) { 0xF8AE } else { 0xF5B0 })
+            [System.Windows.Automation.AutomationProperties]::SetName($button, $(if ($playing) { 'Pause' } else { 'Play' }))
+        }
 
         # What the watchdog is doing
         $dot = $colors.Green
@@ -1534,6 +1641,8 @@ function Show-WatchdogWindow {
         elseif ($State.Phase -ne 'Watching') { 'Fixing' }
         else { 'Watching' }
         Set-Text $ui.PillText $pill -Fade
+        Set-AnimatedBrush $ui.MiniDot 'Fill' $dot
+        Set-Text $ui.MiniWatchText $pill
         $ui.ToggleWatch.Content = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' }
         Set-AnimatedBrush $ui.ToggleWatch 'Background' $(if ($State.Active) { $colors.GlassRaised } else { $colors.Accent })
         Set-AnimatedBrush $ui.ToggleWatch 'Foreground' $(if ($State.Active) { $colors.Text } else { '#FFFFFF' })
@@ -1639,8 +1748,20 @@ function Show-WatchdogWindow {
                 Update-Display
             }
         }
-        elseif ($modifiers -eq 'Control' -and $key -in 'D1', 'NumPad1') { { $ui.NavNow.IsChecked = $true } }
-        elseif ($modifiers -eq 'Control' -and $key -in 'D2', 'NumPad2') { { $ui.NavSettings.IsChecked = $true } }
+        elseif ($plain -and $key -eq 'M') { { if ($ui.MiniMode) { Show-FullWindow } else { Show-MiniPlayer } } }
+        elseif ($plain -and $key -eq 'Escape' -and $ui.MiniMode) { { Show-FullWindow } }
+        elseif ($modifiers -eq 'Control' -and $key -in 'D1', 'NumPad1') {
+            {
+                if ($ui.MiniMode) { Show-FullWindow }
+                $ui.NavNow.IsChecked = $true
+            }
+        }
+        elseif ($modifiers -eq 'Control' -and $key -in 'D2', 'NumPad2') {
+            {
+                if ($ui.MiniMode) { Show-FullWindow }
+                $ui.NavSettings.IsChecked = $true
+            }
+        }
         if (-not $action) { return $false }
         # Holding a key down doesn't repeat it: one press, one skip.
         if (-not $KeyArgs.IsRepeat) { & $action }
@@ -1720,6 +1841,86 @@ function Show-WatchdogWindow {
         $ui["Preset$preset"].Tag = $preset
         $ui["Preset$preset"].Add_Click({ param($source) Set-TimerLength ([int]$source.Tag) })
     }
+    # The mini player takes the main window's place, and the other way round.
+    function Set-MiniPosition {
+        $left = 0.0
+        $top = 0.0
+        $number = [Globalization.NumberStyles]::Float
+        $invariant = [Globalization.CultureInfo]::InvariantCulture
+        $saved = [double]::TryParse([string]$Settings.MiniLeft, $number, $invariant, [ref]$left) -and
+        [double]::TryParse([string]$Settings.MiniTop, $number, $invariant, [ref]$top)
+        # Only where it was if that's still on a screen (one may have been unplugged).
+        $onScreen = $saved -and $left -ge [System.Windows.SystemParameters]::VirtualScreenLeft -and
+        $top -ge [System.Windows.SystemParameters]::VirtualScreenTop -and
+        $left + $mini.Width -le [System.Windows.SystemParameters]::VirtualScreenLeft + [System.Windows.SystemParameters]::VirtualScreenWidth -and
+        $top + $mini.Height -le [System.Windows.SystemParameters]::VirtualScreenTop + [System.Windows.SystemParameters]::VirtualScreenHeight
+        if (-not $onScreen) {
+            # Bottom right, above the taskbar.
+            $area = [System.Windows.SystemParameters]::WorkArea
+            $left = $area.Right - $mini.Width - 8
+            $top = $area.Bottom - $mini.Height - 8
+        }
+        $mini.Left = $left
+        $mini.Top = $top
+        $ui.MiniPlaced = $true
+    }
+
+    function Save-MiniPosition {
+        if (-not $ui.MiniPlaced) { return }
+        $Settings.MiniLeft = [Math]::Round($mini.Left)
+        $Settings.MiniTop = [Math]::Round($mini.Top)
+        Save-WatchdogSetting
+    }
+
+    function Show-MiniPlayer {
+        if (-not $ui.MiniPlaced) { Set-MiniPosition }
+        $ui.MiniMode = $true
+        Update-Display
+        $mini.Show()
+        [void]$mini.Activate()
+        Start-Animation $ui.MiniRoot ([System.Windows.UIElement]::OpacityProperty) 1 220 0
+        $window.Hide()
+        Update-Tray
+    }
+
+    function Show-FullWindow {
+        $ui.MiniMode = $false
+        Save-MiniPosition
+        $window.Show()
+        if ($window.WindowState -eq 'Minimized') { $window.WindowState = 'Normal' }
+        [void]$window.Activate()
+        $mini.Hide()
+        Update-Tray
+        Update-Display
+    }
+
+    $ui.MiniButton.Add_Click({ Show-MiniPlayer })
+    $ui.MiniExpand.Add_Click({ Show-FullWindow })
+    $ui.MiniPrevious.Add_Click({ Invoke-MediaButton 'Previous' })
+    $ui.MiniPlay.Add_Click({ Invoke-MediaButton 'PlayPause' })
+    $ui.MiniNext.Add_Click({ Invoke-MediaButton 'Next' })
+    $ui.MiniWatch.Add_Click({
+            if ($State.Active) { Stop-Watching 'Stopped watching' } else { Start-Watching }
+            Update-Display
+        })
+    # Drag it anywhere; double-click for the full window.
+    $ui.MiniCard.Add_MouseLeftButtonDown({
+            param($source, $e)
+            if ($e.ClickCount -eq 2) { Show-FullWindow; return }
+            try { $mini.DragMove() } catch { Write-Verbose "Couldn't move the mini player: $($_.Exception.Message)" }
+            [void]$source
+        })
+    $ui.MiniCard.Add_MouseEnter({ Start-Animation $ui.MiniExpand ([System.Windows.UIElement]::OpacityProperty) 1 150 })
+    $ui.MiniCard.Add_MouseLeave({ Start-Animation $ui.MiniExpand ([System.Windows.UIElement]::OpacityProperty) 0 250 })
+    $mini.Add_PreviewKeyDown({ if (Invoke-Shortcut $_) { $_.Handled = $true } })
+    # Closing it (Alt+F4) goes back to the full window, unless the watchdog is closing.
+    $mini.Add_Closing({
+            if (-not $ui.MiniClosing) {
+                $_.Cancel = $true
+                Show-FullWindow
+            }
+        })
+
     $ui.HistoryMore.Add_Click({
             $ui.HistoryShown = if ($ui.HistoryShown -gt 5) { 5 } else { $MaxFixHistory }
             Update-History
@@ -1751,6 +1952,7 @@ function Show-WatchdogWindow {
     $trayMenu = New-Object System.Windows.Forms.ContextMenuStrip
     $trayOpen = $trayMenu.Items.Add('Open Apple Music Watchdog')
     $trayOpen.Font = New-Object System.Drawing.Font($trayOpen.Font, [System.Drawing.FontStyle]::Bold)
+    $trayMini = $trayMenu.Items.Add('Mini Player')
     [void]$trayMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
     $traySong = $trayMenu.Items.Add('')
     $traySong.Enabled = $false
@@ -1766,7 +1968,7 @@ function Show-WatchdogWindow {
     $ui.TrayHinted = $false
 
     function Update-Tray {
-        $tray.Visible = $Settings.CloseToTray -or -not $window.IsVisible
+        $tray.Visible = $Settings.CloseToTray -or -not ($window.IsVisible -or $mini.IsVisible)
         $tray.Text = if ($State.Active) { 'Apple Music Watchdog: watching' } else { 'Apple Music Watchdog: not watching' }
     }
 
@@ -1780,6 +1982,13 @@ function Show-WatchdogWindow {
     }
 
     function Show-FromTray {
+        if ($ui.MiniMode) {
+            $mini.Show()
+            [void]$mini.Activate()
+            Update-Tray
+            Update-Display
+            return
+        }
         $window.Show()
         if ($window.WindowState -eq 'Minimized') { $window.WindowState = 'Normal' }
         [void]$window.Activate()
@@ -1788,6 +1997,7 @@ function Show-WatchdogWindow {
     }
 
     $trayOpen.Add_Click({ Show-FromTray })
+    $trayMini.Add_Click({ if ($ui.MiniMode) { Show-FullWindow } else { Show-MiniPlayer } })
     $trayToggle.Add_Click({
             if ($State.Active) { Stop-Watching 'Stopped watching' } else { Start-Watching }
             Update-Tray
@@ -1798,6 +2008,7 @@ function Show-WatchdogWindow {
     $trayPrevious.Add_Click({ Invoke-MediaButton 'Previous' })
     $trayMenu.Add_Opening({
             $trayToggle.Text = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' }
+            $trayMini.Text = if ($ui.MiniMode) { 'Full Window' } else { 'Mini Player' }
             $hasApp = $State.Status -ne 'Not running'
             $song = if ($State.Title) { $State.Title } elseif ($hasApp) { 'Nothing playing' } else { 'Apple Music isn''t open' }
             if ($song.Length -gt 48) { $song = $song.Substring(0, 47) + '...' }
@@ -1845,7 +2056,7 @@ function Show-WatchdogWindow {
                     else { Stop-Fade }
                 }
                 # No need to redraw while the window is minimised or hidden in the tray.
-                if ($window.IsVisible -and $window.WindowState -ne 'Minimized') { Update-Display } else { Update-Tray }
+                if (($window.IsVisible -and $window.WindowState -ne 'Minimized') -or $mini.IsVisible) { Update-Display } else { Update-Tray }
             }
             catch {
                 Add-LogLine "Error: $($_.Exception.Message)"
@@ -1861,6 +2072,9 @@ function Show-WatchdogWindow {
             $ticker.Stop()
             $fadeTimer.Stop()
             $wave.Stop()
+            if ($ui.MiniMode) { Save-MiniPosition }
+            $ui.MiniClosing = $true
+            $mini.Close()
         })
     $window.Add_ContentRendered({
             Start-Animation $ui.Shell ([System.Windows.UIElement]::OpacityProperty) 1 350 0
