@@ -3,6 +3,3 @@
 *.pid
 Thumbs.db
 Apple Music Watchdog.lnk
-fonts/*.ttf
-fonts/*.otf
-fonts/*.ttc
