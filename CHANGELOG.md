@@ -21,6 +21,8 @@
 - Smooth scrolling that moves further per wheel notch, and rounder cards, buttons and artwork.
 - A **Theme** setting: follow Windows, or always light or dark. Switching fades the colours over, and following Windows switches as soon as Windows does.
 - The window is filled with the colours of the current song's artwork, with see-through cards, like Apple Music.
+- The song's colours fill the whole window, sidebar and title bar included.
+- The logo turns black with a white pulse in dark mode, and the app icon does the same when the taskbar is dark.
 - What the watchdog is doing is shown in a wide bar below the artwork, leaving more room along the top.
 - Corners follow Apple's style: capsule buttons and fields, and rounder cards.
 - The timer's countdown only shows while the timer is on, with a **+15 min** button.
