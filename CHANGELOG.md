@@ -23,6 +23,10 @@
 - The window is filled with the colours of the current song's artwork, with see-through cards, like Apple Music.
 - The song's colours fill the whole window, sidebar and title bar included.
 - The logo turns black with a white pulse in dark mode, and the app icon does the same when the taskbar is dark.
+- The song's colours run under the sidebar too, with no line between it and the page.
+- Keyboard shortcuts: Space to play or pause, Left and Right for the previous or next song, W to start or stop watching, M for the mini player, and Ctrl+1 or Ctrl+2 for the pages. They're listed in Settings.
+- A **Fix history** on Now Playing in place of the last fix: the last 50 fixes, newest first, with the song, the time and whether the sound came back. It's kept between runs and can be cleared.
+- A mini player that stays on top: artwork, song, progress, play controls and the watching status, in the song's colours. It remembers where you put it.
 - What the watchdog is doing is shown in a wide bar below the artwork, leaving more room along the top.
 - Corners follow Apple's style: capsule buttons and fields, and rounder cards.
 - The timer's countdown only shows while the timer is on, with a **+15 min** button.
