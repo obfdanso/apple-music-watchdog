@@ -20,7 +20,12 @@
 - Silent Windows notifications when the internet drops out, when a fix took more than pausing and playing, or when nothing worked. They can be turned off in Settings.
 - Smooth scrolling that moves further per wheel notch, and rounder cards, buttons and artwork.
 - A **Theme** setting: follow Windows, or always light or dark. Switching fades the colours over, and following Windows switches as soon as Windows does.
-- Now Playing is filled with the colours of the current song's artwork, with see-through cards, like Apple Music.
+- The window is filled with the colours of the current song's artwork, with see-through cards, like Apple Music.
+- What the watchdog is doing is shown in a wide bar below the artwork, leaving more room along the top.
+- Corners follow Apple's style: capsule buttons and fields, and rounder cards.
+- The timer's countdown only shows while the timer is on, with a **+15 min** button.
+- The window always uses the Windows system font.
+- The song times show when you hover over the song display, like Apple Music.
 - The watchdog steps in after 4 seconds of silence instead of 12. Settings still on the old default of 12 move to 4.
 - If the watchdog stops halfway through a fix, it presses play again instead of leaving the music paused.
 - A bad value in the settings file no longer stops the watchdog from starting.
