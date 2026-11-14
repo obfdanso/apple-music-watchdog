@@ -62,7 +62,7 @@ function Test-UseDark {
 # Like Apple Music since its 2026 redesign: neutral greys, white text, and blue as the
 # only accent. The album art supplies the rest of the colour.
 $DarkColors = @{
-    Background = '#1C1C1C'; Sidebar = '#26000000'; SidebarEdge = '#14FFFFFF'; Card = '#282828'; Raised = '#323232'; Line = '#3A3A3A'
+    Background = '#1C1C1C'; Card = '#282828'; Raised = '#323232'; Line = '#3A3A3A'
     Text = '#FFFFFF'; Secondary = '#A3A3A3'; Hover = '#2A2A2A'; Selected = '#303030'; Track = '#4A4A4A'
     Accent = '#0091FF'; Green = '#30D158'; Amber = '#FFB340'; Grey = '#8E8E8E'
     SwitchOff = '#9A9A9A'; Meter = '#FFFFFF'; Logo = '#000000'; LogoGlyph = '#FFFFFF'; LogoEdge = '#33FFFFFF'
@@ -70,7 +70,7 @@ $DarkColors = @{
     Glass = '#1AFFFFFF'; GlassRaised = '#1AFFFFFF'; NavPicked = '#22FFFFFF'
 }
 $LightColors = @{
-    Background = '#F9F9F9'; Sidebar = '#59FFFFFF'; SidebarEdge = '#12000000'; Card = '#FFFFFF'; Raised = '#EDEDED'; Line = '#E3E3E3'
+    Background = '#F9F9F9'; Card = '#FFFFFF'; Raised = '#EDEDED'; Line = '#E3E3E3'
     Text = '#1A1A1A'; Secondary = '#616161'; Hover = '#EAEAEA'; Selected = '#E4E4E4'; Track = '#D4D4D4'
     Accent = '#0A7AFF'; Green = '#1F9E45'; Amber = '#C77700'; Grey = '#8E8E8E'
     SwitchOff = '#7A7A7A'; Meter = '#1A1A1A'; Logo = '#FFFFFF'; LogoGlyph = '#000000'; LogoEdge = '#D6D6D6'
@@ -465,7 +465,8 @@ $WindowXaml = @'
     </Grid.ColumnDefinitions>
 
     <!-- Sidebar -->
-    <Border Grid.Column="0" Background="{{Sidebar}}" BorderBrush="{{SidebarEdge}}" BorderThickness="0,0,1,0">
+    <!-- No background of its own: the song's colours run under it, with no line in between. -->
+    <Border Grid.Column="0">
       <DockPanel Margin="16,20,16,18">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="6,0,0,26">
           <Border Width="40" Height="40" CornerRadius="9" Background="{{Logo}}" BorderBrush="{{LogoEdge}}" BorderThickness="1">
