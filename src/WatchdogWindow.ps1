@@ -44,6 +44,13 @@ function Test-DarkTheme {
     $light -eq 0
 }
 
+# Whether the taskbar is dark, which the app icon matches.
+function Test-DarkTaskbar {
+    $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize'
+    $light = (Get-ItemProperty $key -ErrorAction SilentlyContinue).SystemUsesLightTheme
+    $light -eq 0
+}
+
 # Whether the window should be dark: the Theme setting, or Windows' own setting.
 function Test-UseDark {
     if ($Settings.Theme -eq 'Dark') { return $true }
@@ -921,8 +928,22 @@ function Show-WatchdogWindow {
 
     # Our own taskbar identity, so the taskbar shows this icon rather than PowerShell's.
     try { [WindowsShell]::SetAppId($AppId) } catch { Write-Verbose "Couldn't set the taskbar identity: $($_.Exception.Message)" }
-    $iconData = New-WatchdogIconData
+    $ui.IconDark = Test-DarkTaskbar
+    $iconData = New-WatchdogIconData $ui.IconDark
     $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.IO.MemoryStream (, $iconData)))
+
+    # When the taskbar switches between light and dark, so does the icon: on the
+    # window, in the tray and on the shortcuts.
+    function Update-AppIcon {
+        $ui.IconDark = Test-DarkTaskbar
+        $data = New-WatchdogIconData $ui.IconDark
+        $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.IO.MemoryStream (, $data)))
+        $old = $tray.Icon
+        $tray.Icon = New-Object System.Drawing.Icon ((New-Object System.IO.MemoryStream (, $data))), ([System.Windows.Forms.SystemInformation]::SmallIconSize)
+        if ($old) { $old.Dispose() }
+        try { Update-WatchdogShortcut $data }
+        catch { Add-LogLine "Couldn't update the shortcut icons: $($_.Exception.Message)" }
+    }
 
     $ease = New-Object System.Windows.Media.Animation.CubicEase
     $ease.EasingMode = 'EaseOut'
@@ -1658,6 +1679,7 @@ function Show-WatchdogWindow {
                     Set-Palette (Test-DarkTheme)
                     Update-PageFill
                 }
+                if ($ui.ThemeCheck % 6 -eq 0 -and (Test-DarkTaskbar) -ne $ui.IconDark) { Update-AppIcon }
                 Invoke-WatchdogStep
                 $now = Get-Date
                 if ($ui.Deadline -and $Settings.PauseWhenDone -and $Settings.FadeOut -and $State.FadeFrom -lt 0 -and
@@ -1865,15 +1887,22 @@ function New-BlurredArtwork($Image) {
 }
 
 # The app icon: a white rounded tile with the watchdog symbol in black, like the
-# Apple Music icon. Drawn at one size, as a PNG.
-function New-WatchdogIconImage([int]$Size) {
+# Apple Music icon, or the other way round for a dark taskbar. Drawn at one size,
+# as a PNG.
+function New-WatchdogIconImage([int]$Size, [bool]$Dark) {
     $visual = New-Object System.Windows.Media.DrawingVisual
     $context = $visual.RenderOpen()
-    $edge = New-Object System.Windows.Media.Pen ((New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 0, 0, 0)))), 1
+    $tile, $symbol, $edgeColor = if ($Dark) {
+        [System.Windows.Media.Brushes]::Black, [System.Windows.Media.Brushes]::White, [System.Windows.Media.Color]::FromArgb(70, 255, 255, 255)
+    }
+    else {
+        [System.Windows.Media.Brushes]::White, [System.Windows.Media.Brushes]::Black, [System.Windows.Media.Color]::FromArgb(40, 0, 0, 0)
+    }
+    $edge = New-Object System.Windows.Media.Pen ((New-Object System.Windows.Media.SolidColorBrush $edgeColor)), 1
     $radius = $Size * 0.22
-    $context.DrawRoundedRectangle([System.Windows.Media.Brushes]::White, $edge, (New-Object System.Windows.Rect 0.5, 0.5, ($Size - 1), ($Size - 1)), $radius, $radius)
+    $context.DrawRoundedRectangle($tile, $edge, (New-Object System.Windows.Rect 0.5, 0.5, ($Size - 1), ($Size - 1)), $radius, $radius)
     $typeface = New-Object System.Windows.Media.Typeface 'Segoe Fluent Icons, Segoe MDL2 Assets'
-    $glyph = New-Object System.Windows.Media.FormattedText ([string][char]0xE9D9), ([Globalization.CultureInfo]::InvariantCulture), 'LeftToRight', $typeface, ($Size * 0.56), ([System.Windows.Media.Brushes]::Black)
+    $glyph = New-Object System.Windows.Media.FormattedText ([string][char]0xE9D9), ([Globalization.CultureInfo]::InvariantCulture), 'LeftToRight', $typeface, ($Size * 0.56), $symbol
     $context.DrawText($glyph, (New-Object System.Windows.Point (($Size - $glyph.Width) / 2), (($Size - $glyph.Height) / 2)))
     $context.Close()
     $bitmap = New-Object System.Windows.Media.Imaging.RenderTargetBitmap $Size, $Size, 96, 96, ([System.Windows.Media.PixelFormats]::Pbgra32)
@@ -1886,9 +1915,9 @@ function New-WatchdogIconImage([int]$Size) {
 }
 
 # The app icon as .ico file data, at every size Windows asks for.
-function New-WatchdogIconData {
+function New-WatchdogIconData([bool]$Dark) {
     $sizes = 16, 20, 24, 32, 40, 48, 64, 256
-    $images = foreach ($size in $sizes) { , (New-WatchdogIconImage $size) }
+    $images = foreach ($size in $sizes) { , (New-WatchdogIconImage $size $Dark) }
     $stream = New-Object System.IO.MemoryStream
     $writer = New-Object System.IO.BinaryWriter $stream
     $writer.Write([uint16]0)              # reserved
