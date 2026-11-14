@@ -484,28 +484,20 @@ $WindowXaml = @'
         <RowDefinition Height="*"/>
       </Grid.RowDefinitions>
 
-      <!-- Top bar: status, Apple Music's controls, the now-playing display, and the on/off button -->
+      <!-- Top bar: Apple Music's controls, the now-playing display, and the on/off button -->
       <Grid Grid.Row="0" Margin="28,16,28,8">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="Auto"/>
           <ColumnDefinition Width="*"/>
           <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-        <Border Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" CornerRadius="16"
-                Background="{{Glass}}" Padding="14,7">
-          <StackPanel Orientation="Horizontal">
-            <Ellipse x:Name="PillDot" Width="9" Height="9" Fill="{{Green}}" VerticalAlignment="Center"/>
-            <TextBlock x:Name="PillText" Text="Watching" FontSize="13.5" FontWeight="SemiBold" Margin="9,0,0,0"/>
-          </StackPanel>
-        </Border>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <Button x:Name="PreviousButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AC;" AutomationProperties.Name="Previous"/>
           <Button x:Name="PlayButton" Style="{StaticResource StepButton}" FontSize="19" Content="&#xF5B0;" AutomationProperties.Name="Play"/>
           <Button x:Name="NextButton" Style="{StaticResource StepButton}" FontSize="15" Content="&#xF8AD;" AutomationProperties.Name="Next"/>
         </StackPanel>
-        <Border Grid.Column="2" MaxWidth="440" Height="56" CornerRadius="14" Background="{{Glass}}"
-                BorderBrush="{{Line}}" BorderThickness="1" Margin="12,0,16,0">
+        <Border Grid.Column="1" MaxWidth="520" Height="56" CornerRadius="14" Background="{{Glass}}"
+                BorderBrush="{{Line}}" BorderThickness="1" Margin="24,0,24,0">
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="54"/>
@@ -536,7 +528,7 @@ $WindowXaml = @'
             </StackPanel>
           </Grid>
         </Border>
-        <Button x:Name="ToggleWatch" Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center"
+        <Button x:Name="ToggleWatch" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"
                 Style="{StaticResource Pill}" Content="Stop Watching"/>
       </Grid>
 
@@ -565,18 +557,27 @@ $WindowXaml = @'
                     <TextBlock x:Name="HeroTitle" FontFamily="{DynamicResource Display}" FontSize="28" FontWeight="SemiBold"
                                TextTrimming="CharacterEllipsis" Margin="0,6,0,0"/>
                     <TextBlock x:Name="HeroArtist" FontSize="16" Foreground="{{Secondary}}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
-                    <Grid Margin="0,24,0,0">
-                      <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                      <Ellipse x:Name="HeroDot" Width="10" Height="10" Fill="{{Green}}" VerticalAlignment="Top" Margin="0,6,0,0"/>
-                      <TextBlock x:Name="HeroWatch" Grid.Column="1" FontSize="15" Margin="10,0,0,0" TextWrapping="Wrap"/>
-                    </Grid>
-                    <Canvas x:Name="Wave" Margin="0,14,0,0" Width="340" Height="44" HorizontalAlignment="Left" ClipToBounds="True"/>
+                    <Canvas x:Name="Wave" Margin="0,26,0,0" Width="340" Height="44" HorizontalAlignment="Left" ClipToBounds="True"/>
                     <TextBlock Text="Sound coming out of Apple Music" FontSize="12.5" Foreground="{{Secondary}}" Margin="0,7,0,0"/>
                   </StackPanel>
                 </Grid>
               </Grid>
             </Border>
-            <UniformGrid Columns="3" Margin="-6,16,-6,0">
+            <!-- What the watchdog is doing, across the page. -->
+            <Border CornerRadius="26" MinHeight="52" Background="{{Glass}}" Padding="22,12" Margin="0,16,0,0">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Ellipse x:Name="PillDot" Width="10" Height="10" Fill="{{Green}}" VerticalAlignment="Center"/>
+                <TextBlock x:Name="PillText" Grid.Column="1" FontSize="15" FontWeight="SemiBold" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="HeroWatch" Grid.Column="2" FontSize="15" Foreground="{{Secondary}}" Margin="14,0,0,0"
+                           TextWrapping="Wrap" VerticalAlignment="Center"/>
+              </Grid>
+            </Border>
+            <UniformGrid Columns="3" Margin="-6,10,-6,0">
               <Border Style="{StaticResource GlassCard}" Margin="6" Padding="20,16">
                 <StackPanel>
                   <TextBlock Text="Fixes" FontSize="13" Foreground="{{Secondary}}"/>
