@@ -428,6 +428,29 @@ $WindowXaml = @'
       </Setter>
     </Style>
 
+    <!-- A key on the keyboard, for the shortcuts list. -->
+    <Style x:Key="KeyCap" TargetType="Border">
+      <Setter Property="Background" Value="{{GlassRaised}}"/>
+      <Setter Property="CornerRadius" Value="7"/>
+      <Setter Property="MinWidth" Value="30"/>
+      <Setter Property="Height" Value="26"/>
+      <Setter Property="Padding" Value="8,0"/>
+      <Setter Property="Margin" Value="0,0,6,0"/>
+    </Style>
+    <Style x:Key="KeyText" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="{{Text}}"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="KeyLabel" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="14"/>
+      <Setter Property="Foreground" Value="{{Secondary}}"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="6,0,0,0"/>
+    </Style>
+
     <Style x:Key="Chip" TargetType="Button" BasedOn="{StaticResource Pill}">
       <Setter Property="FontSize" Value="13.5"/>
       <Setter Property="Foreground" Value="{{Text}}"/>
@@ -544,7 +567,7 @@ $WindowXaml = @'
 
       <Grid Grid.Row="1">
         <!-- Now Playing -->
-        <ScrollViewer x:Name="PageNow" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="PageNow" VerticalScrollBarVisibility="Auto" FocusVisualStyle="{x:Null}">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Now Playing"/>
             <Border CornerRadius="24" MinHeight="262" Background="{{Glass}}">
@@ -651,7 +674,7 @@ $WindowXaml = @'
         </ScrollViewer>
 
         <!-- Settings: one card per setting, like Apple Music's settings -->
-        <ScrollViewer x:Name="PageSettings" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+        <ScrollViewer x:Name="PageSettings" VerticalScrollBarVisibility="Auto" Visibility="Collapsed" FocusVisualStyle="{x:Null}">
           <StackPanel Margin="32,16,32,28">
             <TextBlock Style="{StaticResource PageTitle}" Text="Settings"/>
             <TextBlock Style="{StaticResource SectionLabel}" Text="Sound"/>
@@ -839,6 +862,30 @@ $WindowXaml = @'
                 </StackPanel>
                 <CheckBox x:Name="CloseToTray" Grid.Column="1" Style="{StaticResource Switch}"/>
               </Grid>
+            </Border>
+            <TextBlock Style="{StaticResource SectionLabel}" Text="Keyboard shortcuts" Margin="2,22,0,10"/>
+            <Border Style="{StaticResource SettingCard}" Padding="22,16">
+              <UniformGrid x:Name="ShortcutList" Columns="2">
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="Space"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Play or pause"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="&#x2190;"/></Border>
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="&#x2192;"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Previous or next song"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="W"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Start or stop watching"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,6">
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="Ctrl"/></Border>
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="1"/></Border>
+                  <Border Style="{StaticResource KeyCap}"><TextBlock Style="{StaticResource KeyText}" Text="2"/></Border>
+                  <TextBlock Style="{StaticResource KeyLabel}" Text="Now Playing or Settings"/>
+                </StackPanel>
+              </UniformGrid>
             </Border>
           </StackPanel>
         </ScrollViewer>
@@ -1513,6 +1560,32 @@ function Show-WatchdogWindow {
                 }
             })
     }
+
+    # Keyboard shortcuts, listed at the bottom of Settings. There's nothing to type
+    # into, so single keys are free; they take over Space from whichever button has
+    # the focus (Enter still presses it).
+    function Invoke-Shortcut($KeyArgs) {
+        $key = if ($KeyArgs.Key -eq 'System') { $KeyArgs.SystemKey } else { $KeyArgs.Key }
+        $modifiers = [System.Windows.Input.Keyboard]::Modifiers
+        # The enum, not the string 'None': PowerShell doesn't match 'None' to it.
+        $plain = $modifiers -eq [System.Windows.Input.ModifierKeys]::None
+        $action = if ($plain -and $key -eq 'Space') { { Invoke-MediaButton 'PlayPause' } }
+        elseif (($plain -or $modifiers -eq 'Control') -and $key -eq 'Left') { { Invoke-MediaButton 'Previous' } }
+        elseif (($plain -or $modifiers -eq 'Control') -and $key -eq 'Right') { { Invoke-MediaButton 'Next' } }
+        elseif ($plain -and $key -eq 'W') {
+            {
+                if ($State.Active) { Stop-Watching 'Stopped watching' } else { Start-Watching }
+                Update-Display
+            }
+        }
+        elseif ($modifiers -eq 'Control' -and $key -in 'D1', 'NumPad1') { { $ui.NavNow.IsChecked = $true } }
+        elseif ($modifiers -eq 'Control' -and $key -in 'D2', 'NumPad2') { { $ui.NavSettings.IsChecked = $true } }
+        if (-not $action) { return $false }
+        # Holding a key down doesn't repeat it: one press, one skip.
+        if (-not $KeyArgs.IsRepeat) { & $action }
+        $true
+    }
+    $window.Add_PreviewKeyDown({ if (Invoke-Shortcut $_) { $_.Handled = $true } })
 
     # Settings
     $ui.KeepAwake.IsChecked = $Settings.KeepAwake
