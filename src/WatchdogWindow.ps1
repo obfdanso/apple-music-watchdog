@@ -123,7 +123,7 @@ $WindowXaml = @'
       <Setter Property="Background" Value="{{Glass}}"/>
     </Style>
 
-    <Style x:Key="SettingCard" TargetType="Border" BasedOn="{StaticResource Card}">
+    <Style x:Key="SettingCard" TargetType="Border" BasedOn="{StaticResource GlassCard}">
       <Setter Property="Padding" Value="20,14"/>
       <Setter Property="Margin" Value="0,0,0,6"/>
       <Setter Property="MinHeight" Value="72"/>
@@ -342,7 +342,7 @@ $WindowXaml = @'
     </Style>
 
     <Style x:Key="Stepper" TargetType="Border">
-      <Setter Property="Background" Value="{{Raised}}"/>
+      <Setter Property="Background" Value="{{GlassRaised}}"/>
       <Setter Property="CornerRadius" Value="10"/>
       <Setter Property="Padding" Value="2"/>
       <Setter Property="VerticalAlignment" Value="Center"/>
@@ -363,7 +363,7 @@ $WindowXaml = @'
       <Setter Property="Cursor" Value="Hand"/>
       <Setter Property="FontSize" Value="14"/>
       <Setter Property="FontWeight" Value="SemiBold"/>
-      <Setter Property="Background" Value="{{Raised}}"/>
+      <Setter Property="Background" Value="{{GlassRaised}}"/>
       <Setter Property="Foreground" Value="{{Text}}"/>
       <Setter Property="Padding" Value="18,9"/>
       <Setter Property="Template">
@@ -1382,7 +1382,7 @@ function Show-WatchdogWindow {
         else { 'Watching' }
         Set-Text $ui.PillText $pill -Fade
         $ui.ToggleWatch.Content = if ($State.Active) { 'Stop Watching' } else { 'Start Watching' }
-        Set-AnimatedBrush $ui.ToggleWatch 'Background' $(if ($State.Active) { $colors.Raised } else { $colors.Accent })
+        Set-AnimatedBrush $ui.ToggleWatch 'Background' $(if ($State.Active) { $colors.GlassRaised } else { $colors.Accent })
         Set-AnimatedBrush $ui.ToggleWatch 'Foreground' $(if ($State.Active) { $colors.Text } else { '#FFFFFF' })
 
         Set-Text $ui.SidebarNote $(if ($Settings.CloseToTray) { 'Closing this window keeps the watchdog running in the tray.' } else { 'Closing this window stops the watchdog.' })
@@ -1425,7 +1425,7 @@ function Show-WatchdogWindow {
         foreach ($choice in 'System', 'Light', 'Dark') {
             $chip = $ui["Theme$choice"]
             $on = $Settings.Theme -eq $choice
-            Set-AnimatedBrush $chip 'Background' $(if ($on) { $colors.Accent } else { $colors.Raised })
+            Set-AnimatedBrush $chip 'Background' $(if ($on) { $colors.Accent } else { $colors.GlassRaised })
             Set-AnimatedBrush $chip 'Foreground' $(if ($on) { '#FFFFFF' } else { $colors.Text })
         }
 
@@ -1443,7 +1443,7 @@ function Show-WatchdogWindow {
         Set-AnimatedOpacity $ui.FadeRow $(if ($fadeOn) { 1 } else { 0.5 })
         foreach ($preset in 15, 30, 45, 60, 120, 240) {
             $chip = $ui["Preset$preset"]
-            Set-AnimatedBrush $chip 'Background' $(if ($preset -eq $minutes) { $colors.Accent } else { $colors.Raised })
+            Set-AnimatedBrush $chip 'Background' $(if ($preset -eq $minutes) { $colors.Accent } else { $colors.GlassRaised })
             Set-AnimatedBrush $chip 'Foreground' $(if ($preset -eq $minutes) { '#FFFFFF' } else { $colors.Text })
         }
         if ($ui.Deadline) {
